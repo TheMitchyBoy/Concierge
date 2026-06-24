@@ -1295,11 +1295,11 @@
             return;
           }
           renderChatEmpty(
-            "Ask anything about your goals and projects — it sees them live.",
+            "Ask anything about your goals and projects — it can add or update them for you.",
             [
               "What should I focus on tonight? I have about an hour.",
-              "Rank my fast projects and sharpen each next action.",
-              "Which projects are stalling and how do I unblock them?",
+              "I want to build a paid API wrapper — add it as a project.",
+              "Help me decide what fast-income project to start and create it.",
             ]
           );
         } catch (e) {
@@ -1330,6 +1330,16 @@
         log.appendChild(wrap);
       }
 
+      function formatActions(actions) {
+        if (!actions || !actions.length) return "";
+        return actions.map((a) => {
+          if (a.type === "created_project") return `Added project #${a.id}: ${a.name}`;
+          if (a.type === "updated_project") return `Updated project #${a.id}: ${a.name}`;
+          if (a.type === "created_goal") return `Added goal #${a.id}: ${a.title}`;
+          return "";
+        }).filter(Boolean).join("\n");
+      }
+
       async function sendChat() {
         const ta = $("chat-text");
         const text = ta.value.trim();
@@ -1345,6 +1355,11 @@
           thinking.remove();
           appendMsg("assistant", data.reply);
           chatHistory.push({ role: "assistant", content: data.reply });
+          const actionNote = formatActions(data.actions);
+          if (actionNote) appendMsg("system", actionNote);
+          if (data.actions?.length) {
+            await Promise.all([loadGoals(), loadProjects()]);
+          }
         } catch (e) {
           thinking.remove();
           appendMsg("system", "Error: " + e.message);

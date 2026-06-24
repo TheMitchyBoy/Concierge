@@ -275,8 +275,8 @@ export function createServer(config: Config): express.Express {
       return res.status(400).json({ error: "no valid messages" });
     }
     try {
-      const reply = await chat(config, messages);
-      res.json({ reply });
+      const result = await chat(config, messages);
+      res.json({ reply: result.reply, actions: result.actions });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[ai] chat failed:", msg);
