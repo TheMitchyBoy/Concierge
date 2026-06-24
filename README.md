@@ -192,8 +192,12 @@ at it, or you'll lose your projects on each deploy.
   bot. SQLite is single-file and not meant for concurrent writers either.
 - **No public domain needed.** Don't bother generating a domain or exposing a
   port — this service doesn't listen for HTTP.
-- **`better-sqlite3`** ships prebuilt binaries, so it installs on Railway's
-  Linux image without a compile step in the common case.
+- **Node is pinned to 20 (LTS).** `package.json` `engines` (`20.x`), `.nvmrc`,
+  and `nixpacks.toml` all agree on Node 20 so `better-sqlite3` installs its
+  **prebuilt binary** instead of compiling from source. (On newer Node majors
+  there may be no prebuilt binary yet, which forces a `node-gyp` build that
+  needs Python + a C/C++ toolchain — `nixpacks.toml` installs those as a safety
+  net, but pinning Node 20 avoids the compile entirely.)
 
 ## Telegram commands
 
