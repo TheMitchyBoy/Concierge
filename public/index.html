@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>manoverboard.ai — Bridge</title>
+    <title>manoverboard.ai — Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
@@ -748,21 +748,85 @@
         background: rgba(255, 255, 255, 0.01);
       }
 
-      /* ── Subtle wave at page bottom ── */
-      .auth-screen::after,
-      #app::after {
-        content: "";
+      /* ── Animated ocean waves ── */
+      .ocean-waves {
         position: fixed;
         bottom: 0;
         left: 0;
-        right: 0;
-        height: 120px;
-        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120' preserveAspectRatio='none'%3E%3Cpath fill='%230ea5e9' fill-opacity='0.04' d='M0,64 C240,96 480,32 720,64 C960,96 1200,32 1440,64 L1440,120 L0,120 Z'/%3E%3Cpath fill='%2306b6d4' fill-opacity='0.03' d='M0,80 C360,48 720,112 1080,80 C1260,64 1380,88 1440,96 L1440,120 L0,120 Z'/%3E%3C/svg%3E") bottom center / 100% 120px no-repeat;
+        width: 100%;
+        height: 140px;
         pointer-events: none;
         z-index: 0;
+        overflow: hidden;
+        mask-image: linear-gradient(to top, black 40%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to top, black 40%, transparent 100%);
       }
 
-      #app { position: relative; z-index: 1; }
+      .wave-layer {
+        position: absolute;
+        left: 0;
+        width: 200%;
+        height: 100%;
+        display: flex;
+        will-change: transform;
+      }
+
+      .wave-layer svg {
+        flex: 0 0 50%;
+        width: 50%;
+        height: 100%;
+        display: block;
+      }
+
+      .wave-layer-1 {
+        bottom: 0;
+        height: 90px;
+        animation: wave-drift-1 24s linear infinite;
+        opacity: 0.18;
+      }
+
+      .wave-layer-2 {
+        bottom: -4px;
+        height: 110px;
+        animation: wave-drift-2 17s linear infinite reverse;
+        opacity: 0.28;
+      }
+
+      .wave-layer-3 {
+        bottom: -8px;
+        height: 130px;
+        animation: wave-drift-3 12s linear infinite;
+        opacity: 0.4;
+      }
+
+      @keyframes wave-drift-1 {
+        from { transform: translateX(0) translateY(0); }
+        50% { transform: translateX(-25%) translateY(3px); }
+        to { transform: translateX(-50%) translateY(0); }
+      }
+
+      @keyframes wave-drift-2 {
+        from { transform: translateX(-50%) translateY(0); }
+        50% { transform: translateX(-25%) translateY(-4px); }
+        to { transform: translateX(0) translateY(0); }
+      }
+
+      @keyframes wave-drift-3 {
+        from { transform: translateX(0) translateY(0); }
+        50% { transform: translateX(-25%) translateY(2px); }
+        to { transform: translateX(-50%) translateY(0); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .wave-layer-1,
+        .wave-layer-2,
+        .wave-layer-3 {
+          animation: none;
+          transform: translateX(-25%);
+        }
+      }
+
+      body > :not(.ocean-waves) { position: relative; z-index: 1; }
 
       /* ── Responsive ── */
       @media (max-width: 640px) {
@@ -787,8 +851,8 @@
       <symbol id="icon-anchor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/>
       </symbol>
-      <symbol id="icon-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>
+      <symbol id="icon-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
       </symbol>
       <symbol id="icon-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -803,22 +867,49 @@
         <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
       </symbol>
       <symbol id="icon-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><circle cx="12" cy="5" r="3"/>
+        <rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/>
       </symbol>
-      <symbol id="icon-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      <symbol id="icon-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
       </symbol>
     </svg>
+
+    <div class="ocean-waves" aria-hidden="true">
+      <div class="wave-layer wave-layer-1">
+        <svg viewBox="0 0 1200 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#0ea5e9" d="M0,45 C150,70 300,20 450,45 C600,70 750,20 900,45 C1050,70 1200,20 1200,45 L1200,90 L0,90 Z"/>
+        </svg>
+        <svg viewBox="0 0 1200 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#0ea5e9" d="M0,45 C150,70 300,20 450,45 C600,70 750,20 900,45 C1050,70 1200,20 1200,45 L1200,90 L0,90 Z"/>
+        </svg>
+      </div>
+      <div class="wave-layer wave-layer-2">
+        <svg viewBox="0 0 1200 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#06b6d4" d="M0,55 C200,25 400,85 600,55 C800,25 1000,85 1200,55 L1200,110 L0,110 Z"/>
+        </svg>
+        <svg viewBox="0 0 1200 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#06b6d4" d="M0,55 C200,25 400,85 600,55 C800,25 1000,85 1200,55 L1200,110 L0,110 Z"/>
+        </svg>
+      </div>
+      <div class="wave-layer wave-layer-3">
+        <svg viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#0284c7" d="M0,65 C180,95 360,35 540,65 C720,95 900,35 1080,65 C1140,78 1200,55 1200,65 L1200,130 L0,130 Z"/>
+        </svg>
+        <svg viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#0284c7" d="M0,65 C180,95 360,35 540,65 C720,95 900,35 1080,65 C1140,78 1200,55 1200,65 L1200,130 L0,130 Z"/>
+        </svg>
+      </div>
+    </div>
 
     <div id="login" class="hidden">
       <div class="auth-screen">
         <div class="auth-card">
           <div class="brand-icon"><svg><use href="#icon-life-ring"/></svg></div>
           <h1 class="brand-name">manoverboard<span class="tld">.ai</span></h1>
-          <p class="tagline">Your lifeline when the side hustle pulls you under.</p>
-          <p>Enter your bridge password to come aboard.</p>
+          <p class="tagline">One clear priority for your side hustle.</p>
+          <p>Enter your dashboard password to continue.</p>
           <div class="field"><input id="login-pw" type="password" placeholder="Password" autocomplete="current-password" /></div>
-          <button class="primary" onclick="doLogin()">Come aboard</button>
+          <button class="primary" onclick="doLogin()">Sign in</button>
           <p id="login-err" style="color:var(--danger);min-height:20px;margin-top:12px;font-size:13px"></p>
         </div>
       </div>
@@ -829,7 +920,7 @@
         <div class="auth-card" style="text-align:left">
           <div class="brand-icon" style="margin:0 auto 20px"><svg><use href="#icon-life-ring"/></svg></div>
           <h1 class="brand-name" style="text-align:center">manoverboard<span class="tld">.ai</span></h1>
-          <p style="text-align:center">The bridge is running but <strong style="color:var(--text)">locked</strong> — no password is set yet.</p>
+          <p style="text-align:center">The dashboard is running but <strong style="color:var(--text)">locked</strong> — no password is set yet.</p>
           <p class="muted">Set a <code>DASHBOARD_PASSWORD</code> environment variable and redeploy:</p>
           <ol class="muted">
             <li>Railway → your service → <strong>Variables</strong></li>
@@ -846,22 +937,22 @@
       <header>
         <div class="brand">
           <div class="brand-icon"><svg><use href="#icon-life-ring"/></svg></div>
-          <h1>manoverboard<span class="tld">.ai</span><span class="sub">bridge</span></h1>
+          <h1>manoverboard<span class="tld">.ai</span><span class="sub">dashboard</span></h1>
         </div>
         <button class="ghost" onclick="logout()">
           <svg><use href="#icon-logout"/></svg>
-          Abandon ship
+          Log out
         </button>
       </header>
       <main>
         <div class="tabs">
           <button id="tabbtn-manage" class="tab active" onclick="switchTab('manage')">
-            <svg><use href="#icon-map"/></svg>
-            Chart room
+            <svg><use href="#icon-grid"/></svg>
+            Manage
           </button>
           <button id="tabbtn-assistant" class="tab" onclick="switchTab('assistant')">
-            <svg><use href="#icon-anchor"/></svg>
-            First mate
+            <svg><use href="#icon-chat"/></svg>
+            Assistant
           </button>
         </div>
 
@@ -869,13 +960,13 @@
           <div class="section-block">
             <div class="section-head">
               <h2>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-star"/></svg>
-                North stars
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-target"/></svg>
+                Goals
                 <span id="goals-count" class="count">0</span>
               </h2>
               <button onclick="addGoal()">
                 <svg><use href="#icon-plus"/></svg>
-                Set bearing
+                Add goal
               </button>
             </div>
             <div id="goals"></div>
@@ -884,13 +975,12 @@
           <div class="section-block">
             <div class="section-head">
               <h2>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-compass"/></svg>
-                Voyages
+                Projects
                 <span id="projects-count" class="count">0</span>
               </h2>
               <button class="primary" onclick="addProject()">
                 <svg><use href="#icon-plus"/></svg>
-                Chart voyage
+                Add project
               </button>
             </div>
             <div id="projects" class="grid"></div>
@@ -901,7 +991,7 @@
           <div class="chat-wrap">
             <div id="chat-log" class="chat-log"></div>
             <div class="chat-input-bar">
-              <textarea id="chat-text" placeholder="Ask your First Mate anything… (Enter to send, Shift+Enter for newline)"></textarea>
+              <textarea id="chat-text" placeholder="Ask anything about your goals and projects… (Enter to send, Shift+Enter for newline)"></textarea>
               <button class="primary" id="chat-send" onclick="sendChat()">
                 <svg><use href="#icon-send"/></svg>
                 Send
@@ -948,7 +1038,7 @@
       const STATUSES = ["idea", "active", "blocked", "shipped", "paid", "archived"];
       const TYPES = ["fast", "passive"];
 
-      const TYPE_LABELS = { fast: "fair wind", passive: "trade wind" };
+      const TYPE_LABELS = { fast: "fast", passive: "passive" };
 
       function scoreOf(p) {
         const speed = 6 - Number(p.time_to_cash);
@@ -975,14 +1065,14 @@
               <span class="pill">${p.id ? "#" + p.id : "new"}</span>
               <span class="pill type-${esc(type)}">${TYPE_LABELS[type] || type}</span>
             </div>
-            <span class="score" title="priority bearing">${p.id || p.name ? scoreOf(p) : "—"}</span>
+            <span class="score" title="priority score">${p.id || p.name ? scoreOf(p) : "—"}</span>
           </div>
-          <div class="field"><label>Voyage name</label><input data-k="name" value="${esc(p.name)}" placeholder="What are you shipping?" /></div>
+          <div class="field"><label>Name</label><input data-k="name" value="${esc(p.name)}" placeholder="Project name" /></div>
           <div class="row">
-            <div class="field"><label>Track</label><select data-k="type" onchange="updateTypePill(this)">${selectOpts(TYPES, type)}</select></div>
+            <div class="field"><label>Type</label><select data-k="type" onchange="updateTypePill(this)">${selectOpts(TYPES, type)}</select></div>
             <div class="field"><label>Status</label><select data-k="status" onchange="updateStatusPill(this)">${selectOpts(STATUSES, status)}</select></div>
           </div>
-          <div class="field"><label>Client / port</label><input data-k="client" value="${esc(p.client)}" placeholder="Who's paying the fare?" /></div>
+          <div class="field"><label>Client</label><input data-k="client" value="${esc(p.client)}" placeholder="Client name (optional)" /></div>
           <div class="row-3">
             <div class="field"><label>Revenue 1–5</label><input data-k="revenue_potential" type="number" min="1" max="5" value="${esc(p.revenue_potential ?? 3)}" /></div>
             <div class="field"><label>Confidence 1–5</label><input data-k="confidence" type="number" min="1" max="5" value="${esc(p.confidence ?? 3)}" /></div>
@@ -992,8 +1082,8 @@
             <div class="field"><label>Effort (hrs left)</label><input data-k="effort_remaining" type="number" min="0" value="${esc(p.effort_remaining ?? 8)}" /></div>
             <div class="field"><label>Deadline</label><input data-k="deadline" type="date" value="${esc(p.deadline)}" /></div>
           </div>
-          <div class="field"><label>Next leg</label><textarea data-k="next_action" placeholder="The single next move to make headway">${esc(p.next_action)}</textarea></div>
-          <div class="field"><label>Ship's log</label><textarea data-k="notes" placeholder="Context, blockers, harbor notes…">${esc(p.notes)}</textarea></div>
+          <div class="field"><label>Next action</label><textarea data-k="next_action" placeholder="What's the very next step?">${esc(p.next_action)}</textarea></div>
+          <div class="field"><label>Notes</label><textarea data-k="notes" placeholder="Additional context…">${esc(p.notes)}</textarea></div>
           <div class="card-actions">
             <button class="primary" onclick="saveProject(this)">${isNew ? "Create" : "Save"}</button>
             <span class="spacer"></span>
@@ -1022,7 +1112,7 @@
         const list = await api("GET", "/projects");
         $("projects-count").textContent = list.length;
         if (list.length === 0) {
-          $("projects").innerHTML = '<div class="empty-state">No voyages charted yet — plot your first course.</div>';
+          $("projects").innerHTML = '<div class="empty-state">No projects yet — add one to get started.</div>';
         } else {
           $("projects").innerHTML = list.map(projectCard).join("");
         }
@@ -1057,7 +1147,7 @@
 
       async function deleteProject(btn) {
         const card = btn.closest(".card");
-        if (!confirm("Scuttle voyage #" + card.dataset.id + "?")) return;
+        if (!confirm("Delete project #" + card.dataset.id + "?")) return;
         try {
           await api("DELETE", "/projects/" + card.dataset.id);
           toast("Deleted");
@@ -1065,7 +1155,7 @@
           const remaining = $("projects").querySelectorAll(".card").length;
           $("projects-count").textContent = remaining;
           if (remaining === 0) {
-            $("projects").innerHTML = '<div class="empty-state">No voyages charted yet — plot your first course.</div>';
+            $("projects").innerHTML = '<div class="empty-state">No projects yet — add one to get started.</div>';
           }
         } catch (e) {
           toast(e.message, true);
@@ -1076,8 +1166,8 @@
         const isNew = !g.id;
         return `
         <div class="goal" data-id="${g.id || ""}">
-          <div class="field"><label>North star${g.id ? " #" + g.id : ""}</label><input data-k="title" value="${esc(g.title)}" placeholder="Where are you sailing?" /></div>
-          <div class="field"><label>Why it matters</label><textarea data-k="detail" placeholder="What does reaching this port change?">${esc(g.detail)}</textarea></div>
+          <div class="field"><label>Goal${g.id ? " #" + g.id : ""}</label><input data-k="title" value="${esc(g.title)}" placeholder="What are you aiming for?" /></div>
+          <div class="field"><label>Detail</label><textarea data-k="detail" placeholder="Why does this matter?">${esc(g.detail)}</textarea></div>
           <div class="card-actions">
             <button class="primary" onclick="saveGoal(this)">${isNew ? "Create" : "Save"}</button>
             <span class="spacer"></span>
@@ -1092,7 +1182,7 @@
         const list = await api("GET", "/goals");
         $("goals-count").textContent = list.length;
         if (list.length === 0) {
-          $("goals").innerHTML = '<div class="empty-state">No north stars set — decide where you\'re sailing.</div>';
+          $("goals").innerHTML = '<div class="empty-state">No goals yet — define what you\'re working toward.</div>';
         } else {
           $("goals").innerHTML = list.map(goalCard).join("");
         }
@@ -1122,7 +1212,7 @@
 
       async function deleteGoal(btn) {
         const el = btn.closest(".goal");
-        if (!confirm("Strike this north star from the chart?")) return;
+        if (!confirm("Delete this goal?")) return;
         try {
           await api("DELETE", "/goals/" + el.dataset.id);
           toast("Deleted");
@@ -1130,7 +1220,7 @@
           const remaining = $("goals").querySelectorAll(".goal").length;
           $("goals-count").textContent = remaining;
           if (remaining === 0) {
-            $("goals").innerHTML = '<div class="empty-state">No north stars set — decide where you\'re sailing.</div>';
+            $("goals").innerHTML = '<div class="empty-state">No goals yet — define what you\'re working toward.</div>';
           }
         } catch (e) {
           toast(e.message, true);
@@ -1210,7 +1300,7 @@
             avatar.style.fontSize = "10px";
             avatar.style.fontWeight = "600";
           } else {
-            avatar.innerHTML = '<svg width="16" height="16"><use href="#icon-anchor"/></svg>';
+            avatar.innerHTML = '<svg width="16" height="16"><use href="#icon-bot"/></svg>';
           }
           row.appendChild(avatar);
         }
@@ -1231,18 +1321,18 @@
           const status = await api("GET", "/chat/status");
           if (!status.enabled) {
             renderChatEmpty(
-              "The First Mate isn't aboard yet. Set ANTHROPIC_API_KEY in your environment (Railway → Variables) and redeploy to get navigational help."
+              "The AI assistant isn't configured yet. Set ANTHROPIC_API_KEY in your environment (Railway → Variables) and redeploy."
             );
             $("chat-text").disabled = true;
             $("chat-send").disabled = true;
             return;
           }
           renderChatEmpty(
-            "Your First Mate sees your north stars and voyages live — ask for a bearing when you're adrift.",
+            "Ask anything about your goals and projects — it sees them live.",
             [
               "What should I focus on tonight? I have about an hour.",
-              "Rank my fair-wind voyages and sharpen each next leg.",
-              "Which voyages are adrift and how do I get them moving?",
+              "Rank my fast projects and sharpen each next action.",
+              "Which projects are stalling and how do I unblock them?",
             ]
           );
         } catch (e) {
@@ -1282,7 +1372,7 @@
         chatHistory.push({ role: "user", content: text });
 
         $("chat-send").disabled = true;
-        const thinking = appendMsg("system", "First Mate is plotting course…");
+        const thinking = appendMsg("system", "Thinking…");
         try {
           const data = await api("POST", "/chat", { messages: chatHistory });
           thinking.remove();

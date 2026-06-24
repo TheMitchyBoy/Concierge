@@ -35,20 +35,18 @@ export function buildSystemPrompt(config: Config): string {
   const lines: string[] = [];
 
   lines.push(
-    "You are the First Mate of manoverboard.ai — a personal navigator and business analyst for a solo developer building a freelance/dev business on the side of a full-time job.",
-    "",
-    "The brand metaphor: the user is sailing a side hustle alongside a full-time job. When they're drowning in tasks — man overboard — you throw them a lifeline: one clear bearing, not a whole fleet of todos.",
+    "You are the AI assistant for manoverboard.ai — a personal assistant and business analyst for a solo developer building a freelance/dev business on the side of a full-time job.",
     "",
     "How you think:",
     "- The user is time-poor: ~1 hour on weeknights, more on weekends. Keep suggestions realistic for that.",
-    "- Two tracks: 'fast' = fair wind = client/services/paid software = income, ALWAYS the priority; 'passive' = trade wind = ads/affiliate/own products = long voyage, only with leftover wind.",
-    "- Never dump the whole task list. Surface the ONE highest-leverage next leg, then a little supporting context.",
-    "- Priority bearing = (revenue_potential * confidence * (6 - time_to_cash)) / max(effort_remaining, 1). Higher = steer here sooner.",
-    "- Be concrete and concise. No motivational fluff. Sharpen vague next legs into specific, shippable steps. Help rank, plan, and get unstuck when adrift.",
+    "- Two project tracks: 'fast' = client/services/paid software = income, ALWAYS the priority; 'passive' = ads/affiliate/own products = long game, only with leftover time.",
+    "- Never dump the whole task list. Surface the ONE highest-leverage next move, then a little supporting context.",
+    "- Priority score = (revenue_potential * confidence * (6 - time_to_cash)) / max(effort_remaining, 1). Higher = do sooner.",
+    "- Be concrete and concise. No motivational fluff. Sharpen vague next actions into specific, shippable steps. Help rank, plan, and unblock.",
     ""
   );
 
-  lines.push("# North stars (goals)");
+  lines.push("# Goals");
   if (goals.length === 0) {
     lines.push("(none set yet — encourage the user to define one)");
   } else {
@@ -58,7 +56,7 @@ export function buildSystemPrompt(config: Config): string {
   }
   lines.push("");
 
-  lines.push("# Active voyages (projects)");
+  lines.push("# Active projects");
   if (active.length === 0) {
     lines.push("(no active projects)");
   } else {
@@ -76,9 +74,9 @@ export function buildSystemPrompt(config: Config): string {
         if (d !== null) bits.push(`${d}d since progress`);
       }
       lines.push(
-        `- #${p.id} [${p.type}] ${p.name}${p.client ? ` (port: ${p.client})` : ""} — ${bits.join(", ")}`
+        `- #${p.id} [${p.type}] ${p.name}${p.client ? ` (client: ${p.client})` : ""} — ${bits.join(", ")}`
       );
-      lines.push(`    next leg: ${p.next_action ?? "(none set)"}`);
+      lines.push(`    next: ${p.next_action ?? "(none set)"}`);
       if (p.notes) lines.push(`    notes: ${p.notes}`);
     }
   }
@@ -86,14 +84,14 @@ export function buildSystemPrompt(config: Config): string {
 
   const nonActive = all.filter((p) => p.status !== "active");
   if (nonActive.length > 0) {
-    lines.push("# Other voyages (not active)");
+    lines.push("# Other projects (not active)");
     for (const p of nonActive) {
       lines.push(`- #${p.id} [${p.type}] ${p.name} — status: ${p.status}`);
     }
     lines.push("");
   }
 
-  lines.push("# Today's bearing (computed by the formula)");
+  lines.push("# Today's allocation (computed by the formula)");
   if (allocation.primary) {
     lines.push(
       `- PRIMARY (income): #${allocation.primary.project.id} ${allocation.primary.project.name} — ${allocation.primary.project.next_action ?? "(no next action)"}`
@@ -113,7 +111,7 @@ export function buildSystemPrompt(config: Config): string {
   }
   if (stalled.length > 0) {
     lines.push(
-      `- Adrift (no progress in ${config.stallDays}+ days): ${stalled.map((p) => p.name).join("; ")}`
+      `- Stalling (no progress in ${config.stallDays}+ days): ${stalled.map((p) => p.name).join("; ")}`
     );
   }
 

@@ -1,7 +1,7 @@
 # manoverboard.ai
 
-Your lifeline when the side-hustle pulls you under.
-A lightweight personal navigator + business analyst for a dev side-hustle —
+Your side-hustle focus assistant.
+A lightweight personal assistant + business analyst for a dev side-hustle —
 It is **not** a chat app, Kanban board, or SaaS — it's a **cron job + a SQLite
 database + a Telegram bot**. It runs on a schedule, looks at your projects, and
 pushes you **one clear thing to do each day** so you make money without burning
@@ -324,7 +324,7 @@ Passive projects: quietly letting them rot is how they die.
 
 ## Progress-based accountability
 
-manoverboard.ai tracks momentum, not just priority — it works for any voyage type
+manoverboard.ai tracks momentum, not just priority — it works for any project type
 (client sites, sales, passive products), not just code.
 
 - **Progress stamping.** Every project has a `last_progress_at` timestamp. It's
@@ -333,7 +333,7 @@ manoverboard.ai tracks momentum, not just priority — it works for any voyage t
   optionally logs a note).
 - **Stall detection.** An `active` project is *stalling* if it has no recorded
   progress, or its last progress is older than `STALL_DAYS` (default 4). A
-  `⚠️ Adrift` section is appended to the daily message listing each one as
+  `⚠️ Stalling` section is appended to the daily message listing each one as
   `name — N days since progress`. If any stalled project is `passive`, a line
   reminds you that quietly letting them rot is how they die.
 - **Evening check-in.** At `CHECKIN_TIME` (default 20:00, same timezone) the bot

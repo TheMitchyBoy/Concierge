@@ -42,12 +42,12 @@ export function buildStallSection(stallDays: number): string | null {
   const stalled = getStalledProjects(stallDays);
   if (stalled.length === 0) return null;
 
-  const lines = ["\u26A0\uFE0F Adrift:"];
+  const lines = ["\u26A0\uFE0F Stalling:"];
   for (const p of stalled) {
     lines.push(stallLine(p));
   }
   if (stalled.some((p) => p.type === "passive")) {
-    lines.push("Trade-wind voyages: quietly letting them rot is how they die at sea.");
+    lines.push("Passive projects: quietly letting them rot is how they die.");
   }
   return lines.join("\n");
 }
@@ -63,7 +63,7 @@ export function formatDailyMessage(
   stallDays: number | null = null,
   allocation: DayAllocation = allocateDay()
 ): string {
-  const lines: string[] = ["\uD83E\uDDED Today's bearing", ""];
+  const lines: string[] = ["\u2600\uFE0F Today's focus", ""];
 
   if (allocation.deadlineWarnings.length > 0) {
     lines.push("\uD83D\uDEA8 On the horizon:");
@@ -75,13 +75,13 @@ export function formatDailyMessage(
 
   if (allocation.primary) {
     const { project, score } = allocation.primary;
-    lines.push(`\u2693 PRIMARY (income): ${project.name}`);
-    lines.push(`\u2192 ${project.next_action ?? "(no next leg set)"}`);
-    lines.push(`Why: closest to getting paid (bearing ${roundScore(score)}).`);
+    lines.push(`\uD83D\uDCB0 PRIMARY (income): ${project.name}`);
+    lines.push(`\u2192 ${project.next_action ?? "(no next action set)"}`);
+    lines.push(`Why: closest to getting paid (score ${roundScore(score)}).`);
   } else if (allocation.noFastWork) {
-    lines.push("\u2693 PRIMARY (income): none.");
+    lines.push("\uD83D\uDCB0 PRIMARY (income): none.");
     lines.push(
-      "No active fair-wind voyages. Go find or close a client today — don't drift on trade-wind work."
+      "No active fast/income projects. Go find or close a client today — don't coast on passive work."
     );
   }
 
@@ -89,9 +89,9 @@ export function formatDailyMessage(
     const { project } = allocation.secondary;
     lines.push("");
     lines.push(
-      `\uD83C\uDF0A If you have 30 min spare wind: ${project.name}`
+      `\uD83C\uDF31 If you have 30 min spare: ${project.name}`
     );
-    lines.push(`\u2192 ${project.next_action ?? "(no next leg set)"}`);
+    lines.push(`\u2192 ${project.next_action ?? "(no next action set)"}`);
     lines.push("(only if you have time after the above)");
   }
 
@@ -113,13 +113,13 @@ export function formatDailyMessage(
 export function formatProjectList(): string {
   const active = getActiveProjects();
   if (active.length === 0) {
-    return "No active voyages. Use /add to chart one.";
+    return "No active projects. Use /add to create one.";
   }
   return active
     .map((p) => {
       const s = roundScore(scoreOf(p));
-      const type = p.type === "fast" ? "\u2693fair wind" : "\uD83C\uDF0Atrade wind";
-      return `#${p.id} ${p.name} [${type}] bearing ${s}`;
+      const type = p.type === "fast" ? "\uD83D\uDCB0fast" : "\uD83C\uDF31passive";
+      return `#${p.id} ${p.name} [${type}] score ${s}`;
     })
     .join("\n");
 }
