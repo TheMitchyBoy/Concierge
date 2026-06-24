@@ -3,182 +3,856 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="color-scheme" content="dark" />
     <title>Operator — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
     <style>
       :root {
-        --bg: #0f1115;
-        --panel: #181b22;
-        --panel-2: #1f232c;
-        --border: #2a2f3a;
-        --text: #e6e8ec;
-        --muted: #9aa3b2;
-        --accent: #4f8cff;
-        --fast: #f5a623;
-        --passive: #57c785;
-        --danger: #ff5c5c;
-        --radius: 12px;
+        --bg-0: #050508;
+        --bg-1: #0a0a10;
+        --surface: rgba(18, 18, 28, 0.72);
+        --surface-2: rgba(26, 26, 40, 0.85);
+        --surface-hover: rgba(34, 34, 52, 0.9);
+        --border: rgba(255, 255, 255, 0.07);
+        --border-hover: rgba(255, 255, 255, 0.14);
+        --text: #f0f0f5;
+        --text-2: #a8a8b8;
+        --text-3: #6b6b7b;
+        --accent: #6366f1;
+        --accent-2: #8b5cf6;
+        --accent-glow: rgba(99, 102, 241, 0.35);
+        --fast: #f59e0b;
+        --fast-glow: rgba(245, 158, 11, 0.25);
+        --passive: #10b981;
+        --passive-glow: rgba(16, 185, 129, 0.25);
+        --danger: #f43f5e;
+        --danger-glow: rgba(244, 63, 94, 0.2);
+        --radius-sm: 8px;
+        --radius: 14px;
+        --radius-lg: 20px;
+        --radius-xl: 28px;
+        --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.5);
+        --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
       }
-      * { box-sizing: border-box; }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html { scroll-behavior: smooth; }
+
       body {
         margin: 0;
-        font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        background: var(--bg);
+        font: 15px/1.6 "Inter", system-ui, -apple-system, sans-serif;
+        background: var(--bg-0);
         color: var(--text);
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
+
+      /* Ambient background */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 80% 60% at 10% -10%, rgba(99, 102, 241, 0.18), transparent 50%),
+          radial-gradient(ellipse 60% 50% at 90% 10%, rgba(139, 92, 246, 0.12), transparent 50%),
+          radial-gradient(ellipse 50% 40% at 50% 100%, rgba(16, 185, 129, 0.06), transparent 50%),
+          var(--bg-1);
+        z-index: -1;
+        pointer-events: none;
+      }
+
+      /* Noise texture overlay */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        opacity: 0.025;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        z-index: -1;
+        pointer-events: none;
+      }
+
+      /* ── Header ── */
       header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px 22px;
+        padding: 16px 28px;
         border-bottom: 1px solid var(--border);
         position: sticky;
         top: 0;
-        background: rgba(15, 17, 21, 0.9);
-        backdrop-filter: blur(8px);
-        z-index: 10;
+        background: rgba(5, 5, 8, 0.75);
+        backdrop-filter: blur(20px) saturate(1.4);
+        -webkit-backdrop-filter: blur(20px) saturate(1.4);
+        z-index: 100;
       }
-      header h1 { font-size: 18px; margin: 0; letter-spacing: 0.3px; }
-      header .sun { color: var(--fast); }
-      main { max-width: 1100px; margin: 0 auto; padding: 22px; }
-      h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 28px 0 12px; }
-      button {
-        font: inherit;
-        cursor: pointer;
-        border: 1px solid var(--border);
-        background: var(--panel-2);
-        color: var(--text);
-        padding: 8px 14px;
-        border-radius: 8px;
-        transition: background 0.15s, border-color 0.15s;
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
       }
-      button:hover { border-color: var(--accent); }
-      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-      button.danger { color: var(--danger); }
-      button.danger:hover { border-color: var(--danger); }
-      input, select, textarea {
-        font: inherit;
-        width: 100%;
-        background: var(--bg);
-        color: var(--text);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 8px 10px;
+
+      .brand-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        display: grid;
+        place-items: center;
+        box-shadow: 0 0 20px var(--accent-glow);
+        flex-shrink: 0;
       }
-      textarea { resize: vertical; min-height: 48px; }
-      label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
-      .card {
-        background: var(--panel);
+
+      .brand-icon svg { width: 20px; height: 20px; color: #fff; }
+
+      header h1 {
+        font-size: 17px;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+
+      header h1 .sub {
+        font-weight: 400;
+        color: var(--text-3);
+        margin-left: 6px;
+      }
+
+      /* ── Layout ── */
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 28px 28px 48px;
+      }
+
+      /* ── Segmented tabs ── */
+      .tabs {
+        display: inline-flex;
+        gap: 4px;
+        padding: 4px;
+        background: var(--surface);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        padding: 16px;
+        margin-bottom: 32px;
+        backdrop-filter: blur(12px);
       }
-      .card.fast { border-top: 3px solid var(--fast); }
-      .card.passive { border-top: 3px solid var(--passive); }
-      .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-      .pill { font-size: 11px; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); }
-      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-      .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-      .field { margin-bottom: 10px; }
-      .card-actions { display: flex; gap: 8px; margin-top: 12px; }
-      .card-actions .spacer { flex: 1; }
-      .score { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
-      .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-      .goal { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
-      #login { max-width: 360px; margin: 12vh auto; }
-      #login .card { text-align: center; }
-      .toast {
-        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-        background: var(--panel-2); border: 1px solid var(--border); padding: 10px 18px;
-        border-radius: 10px; opacity: 0; transition: opacity 0.25s; pointer-events: none;
-      }
-      .toast.show { opacity: 1; }
-      .toast.err { border-color: var(--danger); color: var(--danger); }
-      .hidden { display: none !important; }
-      .muted { color: var(--muted); }
-      a { color: var(--accent); }
-      .tabs { display: flex; gap: 6px; margin: 4px 0 18px; border-bottom: 1px solid var(--border); }
+
       .tab {
-        background: none; border: none; border-bottom: 2px solid transparent;
-        border-radius: 0; color: var(--muted); padding: 10px 14px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        background: none;
+        border: none;
+        border-radius: calc(var(--radius) - 4px);
+        color: var(--text-3);
+        padding: 9px 20px;
+        transition: all 0.2s var(--ease);
+        display: flex;
+        align-items: center;
+        gap: 7px;
       }
-      .tab:hover { color: var(--text); border-color: transparent; }
-      .tab.active { color: var(--text); border-bottom-color: var(--accent); }
-      /* Chat */
-      .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 230px); min-height: 320px; }
+
+      .tab svg { width: 15px; height: 15px; opacity: 0.6; transition: opacity 0.2s; }
+      .tab:hover { color: var(--text-2); }
+      .tab:hover svg { opacity: 0.8; }
+      .tab.active {
+        background: rgba(99, 102, 241, 0.15);
+        color: var(--text);
+        box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25);
+      }
+      .tab.active svg { opacity: 1; color: var(--accent); }
+
+      /* ── Section headers ── */
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .section-head h2 {
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-3);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .section-head h2 .count {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        font-weight: 600;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        padding: 2px 8px;
+        border-radius: 20px;
+        color: var(--text-2);
+        letter-spacing: 0;
+        text-transform: none;
+      }
+
+      .section-block { margin-bottom: 40px; }
+
+      /* ── Buttons ── */
+      button {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid var(--border);
+        background: var(--surface-2);
+        color: var(--text);
+        padding: 9px 16px;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s var(--ease);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+
+      button:hover {
+        background: var(--surface-hover);
+        border-color: var(--border-hover);
+        transform: translateY(-1px);
+      }
+
+      button:active { transform: translateY(0); }
+
+      button.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 2px 12px var(--accent-glow);
+      }
+
+      button.primary:hover {
+        box-shadow: 0 4px 20px var(--accent-glow);
+        border-color: transparent;
+      }
+
+      button.ghost {
+        background: transparent;
+        border-color: var(--border);
+        color: var(--text-2);
+      }
+
+      button.ghost:hover { color: var(--text); }
+
+      button.danger {
+        color: var(--danger);
+        background: rgba(244, 63, 94, 0.08);
+        border-color: rgba(244, 63, 94, 0.2);
+      }
+
+      button.danger:hover {
+        background: rgba(244, 63, 94, 0.15);
+        border-color: rgba(244, 63, 94, 0.35);
+      }
+
+      button.icon-btn {
+        padding: 9px;
+        border-radius: var(--radius-sm);
+      }
+
+      button svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+      /* ── Form controls ── */
+      input, select, textarea {
+        font: inherit;
+        font-size: 14px;
+        width: 100%;
+        background: rgba(0, 0, 0, 0.3);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 10px 12px;
+        transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), background 0.2s;
+        outline: none;
+      }
+
+      input:hover, select:hover, textarea:hover {
+        border-color: var(--border-hover);
+      }
+
+      input:focus, select:focus, textarea:focus {
+        border-color: rgba(99, 102, 241, 0.5);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+        background: rgba(0, 0, 0, 0.4);
+      }
+
+      select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b7b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 32px;
+      }
+
+      textarea { resize: vertical; min-height: 52px; line-height: 1.5; }
+
+      label {
+        display: block;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-3);
+        margin-bottom: 6px;
+      }
+
+      .field { margin-bottom: 12px; }
+
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+      @media (max-width: 600px) {
+        .row, .row-3 { grid-template-columns: 1fr; }
+      }
+
+      /* ── Cards ── */
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 20px;
+        backdrop-filter: blur(16px);
+        transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        opacity: 0;
+        transition: opacity 0.25s;
+      }
+
+      .card:hover {
+        border-color: var(--border-hover);
+        box-shadow: var(--shadow);
+        transform: translateY(-2px);
+      }
+
+      .card:hover::before { opacity: 1; }
+
+      .card.fast::before { background: linear-gradient(90deg, var(--fast), transparent); }
+      .card.passive::before { background: linear-gradient(90deg, var(--passive), transparent); }
+
+      .card.fast:hover { box-shadow: var(--shadow), 0 0 40px var(--fast-glow); }
+      .card.passive:hover { box-shadow: var(--shadow), 0 0 40px var(--passive-glow); }
+
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        gap: 8px;
+      }
+
+      .card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+      .pill {
+        font-size: 11px;
+        font-weight: 500;
+        padding: 3px 10px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        color: var(--text-2);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .pill.type-fast {
+        color: var(--fast);
+        border-color: rgba(245, 158, 11, 0.3);
+        background: rgba(245, 158, 11, 0.08);
+      }
+
+      .pill.type-passive {
+        color: var(--passive);
+        border-color: rgba(16, 185, 129, 0.3);
+        background: rgba(16, 185, 129, 0.08);
+      }
+
+      .pill.status-idea { color: #a78bfa; border-color: rgba(167, 139, 250, 0.3); background: rgba(167, 139, 250, 0.08); }
+      .pill.status-active { color: #34d399; border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.08); }
+      .pill.status-blocked { color: #fb7185; border-color: rgba(251, 113, 133, 0.3); background: rgba(251, 113, 133, 0.08); }
+      .pill.status-shipped { color: #60a5fa; border-color: rgba(96, 165, 250, 0.3); background: rgba(96, 165, 250, 0.08); }
+      .pill.status-paid { color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.08); }
+      .pill.status-archived { color: var(--text-3); }
+
+      .score {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--accent);
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        padding: 4px 10px;
+        border-radius: var(--radius-sm);
+      }
+
+      .card-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+      }
+
+      .card-actions .spacer { flex: 1; }
+
+      /* ── Goals ── */
+      .goal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        margin-bottom: 10px;
+        backdrop-filter: blur(12px);
+        transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+      }
+
+      .goal:hover {
+        border-color: var(--border-hover);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      }
+
+      .goal .card-actions {
+        margin-top: 12px;
+        padding-top: 12px;
+      }
+
+      /* ── Login / Not configured ── */
+      .auth-screen {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .auth-card {
+        width: 100%;
+        max-width: 400px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 40px 36px;
+        backdrop-filter: blur(24px);
+        box-shadow: var(--shadow-lg);
+        text-align: center;
+        animation: fadeUp 0.5s var(--ease) both;
+      }
+
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .auth-card .brand-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        margin: 0 auto 20px;
+      }
+
+      .auth-card .brand-icon svg { width: 28px; height: 28px; }
+
+      .auth-card h1 {
+        font-size: 22px;
+        font-weight: 700;
+        margin: 0 0 8px;
+        letter-spacing: -0.03em;
+      }
+
+      .auth-card p { margin: 0 0 24px; color: var(--text-2); font-size: 14px; }
+
+      .auth-card .field { text-align: left; }
+
+      .auth-card button.primary { width: 100%; justify-content: center; padding: 12px; font-size: 14px; }
+
+      .auth-card ol {
+        text-align: left;
+        padding-left: 20px;
+        color: var(--text-2);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      .auth-card code {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: var(--accent);
+      }
+
+      /* ── Toast ── */
+      .toast {
+        position: fixed;
+        bottom: 28px;
+        left: 50%;
+        transform: translateX(-50%) translateY(12px);
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        padding: 12px 22px;
+        border-radius: var(--radius);
+        backdrop-filter: blur(16px);
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        transition: opacity 0.3s var(--ease), transform 0.3s var(--ease-spring);
+        pointer-events: none;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 1000;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      .toast.err {
+        border-color: rgba(244, 63, 94, 0.4);
+        color: var(--danger);
+        background: rgba(244, 63, 94, 0.08);
+      }
+
+      /* ── Chat ── */
+      .chat-wrap {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 220px);
+        min-height: 400px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        backdrop-filter: blur(16px);
+      }
+
       .chat-log {
-        flex: 1; overflow-y: auto; padding: 8px 2px; display: flex; flex-direction: column; gap: 12px;
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        scroll-behavior: smooth;
       }
-      .msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; }
-      .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
-      .msg.assistant { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-      .msg.system { align-self: center; color: var(--muted); font-size: 13px; background: none; }
-      .chat-input { display: flex; gap: 8px; margin-top: 12px; }
-      .chat-input textarea { min-height: 44px; max-height: 160px; }
-      .chat-empty { color: var(--muted); text-align: center; margin: auto; max-width: 420px; }
-      .chat-empty .examples { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-      .chip { border: 1px dashed var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--text); }
-      .chip:hover { border-color: var(--accent); }
+
+      .chat-log::-webkit-scrollbar { width: 6px; }
+      .chat-log::-webkit-scrollbar-track { background: transparent; }
+      .chat-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+      .msg-row {
+        display: flex;
+        gap: 10px;
+        max-width: 85%;
+        animation: msgIn 0.3s var(--ease) both;
+      }
+
+      @keyframes msgIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
+      .msg-row.assistant { align-self: flex-start; }
+      .msg-row.system { align-self: center; max-width: 100%; }
+
+      .msg-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        font-size: 14px;
+      }
+
+      .msg-row.user .msg-avatar {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        box-shadow: 0 0 12px var(--accent-glow);
+      }
+
+      .msg-row.assistant .msg-avatar {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+      }
+
+      .msg {
+        padding: 12px 16px;
+        border-radius: 16px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .msg-row.user .msg {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #fff;
+        border-bottom-right-radius: 4px;
+        box-shadow: 0 2px 12px var(--accent-glow);
+      }
+
+      .msg-row.assistant .msg {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-bottom-left-radius: 4px;
+      }
+
+      .msg-row.system .msg {
+        color: var(--text-3);
+        font-size: 13px;
+        background: none;
+        padding: 4px 0;
+        text-align: center;
+      }
+
+      .chat-input-bar {
+        display: flex;
+        gap: 10px;
+        padding: 16px 20px;
+        border-top: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      .chat-input-bar textarea {
+        min-height: 44px;
+        max-height: 160px;
+        border-radius: var(--radius);
+        background: var(--surface-2);
+        resize: none;
+      }
+
+      .chat-input-bar button.primary {
+        align-self: flex-end;
+        padding: 11px 20px;
+        border-radius: var(--radius);
+      }
+
+      .chat-empty {
+        color: var(--text-2);
+        text-align: center;
+        margin: auto;
+        max-width: 480px;
+        padding: 24px;
+      }
+
+      .chat-empty p { font-size: 15px; line-height: 1.6; margin: 0 0 20px; }
+
+      .chat-empty .examples {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .chip {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px 16px;
+        cursor: pointer;
+        color: var(--text);
+        font-size: 13px;
+        text-align: left;
+        background: var(--surface-2);
+        transition: all 0.2s var(--ease);
+      }
+
+      .chip:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+        background: rgba(99, 102, 241, 0.08);
+        transform: translateX(4px);
+      }
+
+      .chip::before {
+        content: "→";
+        margin-right: 8px;
+        color: var(--accent);
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+
+      .chip:hover::before { opacity: 1; }
+
+      /* ── Utilities ── */
+      .hidden { display: none !important; }
+      .muted { color: var(--text-2); }
+
+      /* ── Empty state ── */
+      .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--text-3);
+        font-size: 14px;
+        border: 1px dashed var(--border);
+        border-radius: var(--radius-lg);
+        background: rgba(255, 255, 255, 0.01);
+      }
+
+      /* ── Responsive ── */
+      @media (max-width: 640px) {
+        header { padding: 14px 18px; }
+        main { padding: 20px 18px 36px; }
+        .grid { grid-template-columns: 1fr; }
+        .auth-card { padding: 32px 24px; }
+        .tabs { width: 100%; }
+        .tab { flex: 1; justify-content: center; }
+      }
     </style>
   </head>
   <body>
+    <!-- SVG icon sprite -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+      <symbol id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </symbol>
+      <symbol id="icon-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+      </symbol>
+      <symbol id="icon-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M5 12h14"/>
+      </symbol>
+      <symbol id="icon-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+      </symbol>
+      <symbol id="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </symbol>
+      <symbol id="icon-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/>
+      </symbol>
+      <symbol id="icon-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+      </symbol>
+    </svg>
+
     <div id="login" class="hidden">
-      <div class="card">
-        <h1><span class="sun">☀️</span> Operator</h1>
-        <p class="muted">Enter the dashboard password.</p>
-        <div class="field"><input id="login-pw" type="password" placeholder="Password" autocomplete="current-password" /></div>
-        <button class="primary" style="width:100%" onclick="doLogin()">Unlock</button>
-        <p id="login-err" class="muted" style="color:var(--danger);min-height:18px"></p>
+      <div class="auth-screen">
+        <div class="auth-card">
+          <div class="brand-icon"><svg><use href="#icon-sun"/></svg></div>
+          <h1>Operator</h1>
+          <p>Enter your dashboard password to continue.</p>
+          <div class="field"><input id="login-pw" type="password" placeholder="Password" autocomplete="current-password" /></div>
+          <button class="primary" onclick="doLogin()">Unlock dashboard</button>
+          <p id="login-err" style="color:var(--danger);min-height:20px;margin-top:12px;font-size:13px"></p>
+        </div>
       </div>
     </div>
 
     <div id="notconfig" class="hidden">
-      <div class="card" style="text-align:left">
-        <h1 style="text-align:center"><span class="sun">☀️</span> Operator</h1>
-        <p class="muted">The dashboard is running but <strong>locked</strong> — no password is set yet.</p>
-        <p class="muted">To use it, set a <code>DASHBOARD_PASSWORD</code> environment variable and redeploy:</p>
-        <ol class="muted" style="padding-left:18px">
-          <li>Railway → your service → <strong>Variables</strong></li>
-          <li>Add <code>DASHBOARD_PASSWORD</code> = a strong value</li>
-          <li>(Optional) add <code>ANTHROPIC_API_KEY</code> to enable the AI agent</li>
-          <li>Redeploy, then reload this page and log in</li>
-        </ol>
-        <button style="width:100%" onclick="location.reload()">Reload</button>
+      <div class="auth-screen">
+        <div class="auth-card" style="text-align:left">
+          <div class="brand-icon" style="margin:0 auto 20px"><svg><use href="#icon-sun"/></svg></div>
+          <h1 style="text-align:center">Operator</h1>
+          <p style="text-align:center">The dashboard is running but <strong style="color:var(--text)">locked</strong> — no password is set yet.</p>
+          <p class="muted">Set a <code>DASHBOARD_PASSWORD</code> environment variable and redeploy:</p>
+          <ol class="muted">
+            <li>Railway → your service → <strong>Variables</strong></li>
+            <li>Add <code>DASHBOARD_PASSWORD</code> = a strong value</li>
+            <li>(Optional) add <code>ANTHROPIC_API_KEY</code> to enable the AI agent</li>
+            <li>Redeploy, then reload this page and log in</li>
+          </ol>
+          <button class="primary" style="width:100%;justify-content:center;margin-top:8px" onclick="location.reload()">Reload page</button>
+        </div>
       </div>
     </div>
 
     <div id="app" class="hidden">
       <header>
-        <h1><span class="sun">☀️</span> Operator <span class="muted" style="font-weight:400">dashboard</span></h1>
-        <button onclick="logout()">Log out</button>
+        <div class="brand">
+          <div class="brand-icon"><svg><use href="#icon-sun"/></svg></div>
+          <h1>Operator<span class="sub">dashboard</span></h1>
+        </div>
+        <button class="ghost" onclick="logout()">
+          <svg><use href="#icon-logout"/></svg>
+          Log out
+        </button>
       </header>
       <main>
         <div class="tabs">
-          <button id="tabbtn-manage" class="tab active" onclick="switchTab('manage')">Manage</button>
-          <button id="tabbtn-assistant" class="tab" onclick="switchTab('assistant')">Assistant</button>
+          <button id="tabbtn-manage" class="tab active" onclick="switchTab('manage')">
+            <svg><use href="#icon-grid"/></svg>
+            Manage
+          </button>
+          <button id="tabbtn-assistant" class="tab" onclick="switchTab('assistant')">
+            <svg><use href="#icon-chat"/></svg>
+            Assistant
+          </button>
         </div>
 
         <section id="tab-manage">
-          <div class="toolbar">
-            <h2 style="margin:0">Goals</h2>
-            <button onclick="addGoal()">+ Add goal</button>
+          <div class="section-block">
+            <div class="section-head">
+              <h2>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-target"/></svg>
+                Goals
+                <span id="goals-count" class="count">0</span>
+              </h2>
+              <button onclick="addGoal()">
+                <svg><use href="#icon-plus"/></svg>
+                Add goal
+              </button>
+            </div>
+            <div id="goals"></div>
           </div>
-          <div id="goals"></div>
 
-          <div class="toolbar">
-            <h2 style="margin:0">Projects</h2>
-            <button class="primary" onclick="addProject()">+ Add project</button>
+          <div class="section-block">
+            <div class="section-head">
+              <h2>
+                Projects
+                <span id="projects-count" class="count">0</span>
+              </h2>
+              <button class="primary" onclick="addProject()">
+                <svg><use href="#icon-plus"/></svg>
+                Add project
+              </button>
+            </div>
+            <div id="projects" class="grid"></div>
           </div>
-          <div id="projects" class="grid"></div>
         </section>
 
         <section id="tab-assistant" class="hidden">
           <div class="chat-wrap">
             <div id="chat-log" class="chat-log"></div>
-            <div class="chat-input">
+            <div class="chat-input-bar">
               <textarea id="chat-text" placeholder="Ask your Operator agent… (Enter to send, Shift+Enter for newline)"></textarea>
-              <button class="primary" id="chat-send" onclick="sendChat()">Send</button>
+              <button class="primary" id="chat-send" onclick="sendChat()">
+                <svg><use href="#icon-send"/></svg>
+                Send
+              </button>
             </div>
           </div>
         </section>
@@ -197,7 +871,7 @@
         const t = $("toast");
         t.textContent = msg;
         t.className = "toast show" + (isErr ? " err" : "");
-        setTimeout(() => (t.className = "toast"), 2200);
+        setTimeout(() => (t.className = "toast"), 2400);
       }
 
       async function api(method, path, body) {
@@ -237,29 +911,34 @@
 
       function projectCard(p) {
         const isNew = !p.id;
+        const type = p.type || "fast";
+        const status = p.status || "active";
         return `
-        <div class="card ${esc(p.type || "fast")}" data-id="${p.id || ""}">
+        <div class="card ${esc(type)}" data-id="${p.id || ""}">
           <div class="card-head">
-            <span class="pill">${p.id ? "#" + p.id : "new"}</span>
-            <span class="score" title="priority score">${p.id || p.name ? "score " + scoreOf(p) : ""}</span>
+            <div class="card-meta">
+              <span class="pill">${p.id ? "#" + p.id : "new"}</span>
+              <span class="pill type-${esc(type)}">${type}</span>
+            </div>
+            <span class="score" title="priority score">${p.id || p.name ? scoreOf(p) : "—"}</span>
           </div>
-          <div class="field"><label>Name</label><input data-k="name" value="${esc(p.name)}" /></div>
+          <div class="field"><label>Name</label><input data-k="name" value="${esc(p.name)}" placeholder="Project name" /></div>
           <div class="row">
-            <div class="field"><label>Type</label><select data-k="type">${selectOpts(TYPES, p.type || "fast")}</select></div>
-            <div class="field"><label>Status</label><select data-k="status">${selectOpts(STATUSES, p.status || "active")}</select></div>
+            <div class="field"><label>Type</label><select data-k="type" onchange="updateTypePill(this)">${selectOpts(TYPES, type)}</select></div>
+            <div class="field"><label>Status</label><select data-k="status" onchange="updateStatusPill(this)">${selectOpts(STATUSES, status)}</select></div>
           </div>
-          <div class="field"><label>Client</label><input data-k="client" value="${esc(p.client)}" /></div>
+          <div class="field"><label>Client</label><input data-k="client" value="${esc(p.client)}" placeholder="Client name (optional)" /></div>
           <div class="row-3">
-            <div class="field"><label>Revenue 1-5</label><input data-k="revenue_potential" type="number" min="1" max="5" value="${esc(p.revenue_potential ?? 3)}" /></div>
-            <div class="field"><label>Confidence 1-5</label><input data-k="confidence" type="number" min="1" max="5" value="${esc(p.confidence ?? 3)}" /></div>
-            <div class="field"><label>Time→cash 1-5</label><input data-k="time_to_cash" type="number" min="1" max="5" value="${esc(p.time_to_cash ?? 3)}" /></div>
+            <div class="field"><label>Revenue 1–5</label><input data-k="revenue_potential" type="number" min="1" max="5" value="${esc(p.revenue_potential ?? 3)}" /></div>
+            <div class="field"><label>Confidence 1–5</label><input data-k="confidence" type="number" min="1" max="5" value="${esc(p.confidence ?? 3)}" /></div>
+            <div class="field"><label>Time→cash 1–5</label><input data-k="time_to_cash" type="number" min="1" max="5" value="${esc(p.time_to_cash ?? 3)}" /></div>
           </div>
           <div class="row">
             <div class="field"><label>Effort (hrs left)</label><input data-k="effort_remaining" type="number" min="0" value="${esc(p.effort_remaining ?? 8)}" /></div>
             <div class="field"><label>Deadline</label><input data-k="deadline" type="date" value="${esc(p.deadline)}" /></div>
           </div>
-          <div class="field"><label>Next action</label><textarea data-k="next_action">${esc(p.next_action)}</textarea></div>
-          <div class="field"><label>Notes</label><textarea data-k="notes">${esc(p.notes)}</textarea></div>
+          <div class="field"><label>Next action</label><textarea data-k="next_action" placeholder="What's the very next step?">${esc(p.next_action)}</textarea></div>
+          <div class="field"><label>Notes</label><textarea data-k="notes" placeholder="Additional context…">${esc(p.notes)}</textarea></div>
           <div class="card-actions">
             <button class="primary" onclick="saveProject(this)">${isNew ? "Create" : "Save"}</button>
             <span class="spacer"></span>
@@ -267,6 +946,14 @@
           </div>
         </div>`;
       }
+
+      function updateTypePill(sel) {
+        const card = sel.closest(".card");
+        card.classList.remove("fast", "passive");
+        card.classList.add(sel.value);
+      }
+
+      function updateStatusPill(sel) { /* status shown in select only */ }
 
       function collectCard(cardEl) {
         const out = {};
@@ -278,10 +965,17 @@
 
       async function loadProjects() {
         const list = await api("GET", "/projects");
-        $("projects").innerHTML = list.map(projectCard).join("");
+        $("projects-count").textContent = list.length;
+        if (list.length === 0) {
+          $("projects").innerHTML = '<div class="empty-state">No projects yet — add one to get started.</div>';
+        } else {
+          $("projects").innerHTML = list.map(projectCard).join("");
+        }
       }
 
       function addProject() {
+        const empty = $("projects").querySelector(".empty-state");
+        if (empty) empty.remove();
         const wrap = document.createElement("div");
         wrap.innerHTML = projectCard({ type: "fast", status: "active" });
         $("projects").prepend(wrap.firstElementChild);
@@ -313,6 +1007,11 @@
           await api("DELETE", "/projects/" + card.dataset.id);
           toast("Deleted");
           card.remove();
+          const remaining = $("projects").querySelectorAll(".card").length;
+          $("projects-count").textContent = remaining;
+          if (remaining === 0) {
+            $("projects").innerHTML = '<div class="empty-state">No projects yet — add one to get started.</div>';
+          }
         } catch (e) {
           toast(e.message, true);
         }
@@ -323,7 +1022,7 @@
         return `
         <div class="goal" data-id="${g.id || ""}">
           <div class="field"><label>Goal${g.id ? " #" + g.id : ""}</label><input data-k="title" value="${esc(g.title)}" placeholder="What are you aiming for?" /></div>
-          <div class="field"><label>Detail</label><textarea data-k="detail">${esc(g.detail)}</textarea></div>
+          <div class="field"><label>Detail</label><textarea data-k="detail" placeholder="Why does this matter?">${esc(g.detail)}</textarea></div>
           <div class="card-actions">
             <button class="primary" onclick="saveGoal(this)">${isNew ? "Create" : "Save"}</button>
             <span class="spacer"></span>
@@ -336,10 +1035,17 @@
 
       async function loadGoals() {
         const list = await api("GET", "/goals");
-        $("goals").innerHTML = list.map(goalCard).join("");
+        $("goals-count").textContent = list.length;
+        if (list.length === 0) {
+          $("goals").innerHTML = '<div class="empty-state">No goals yet — define what you\'re working toward.</div>';
+        } else {
+          $("goals").innerHTML = list.map(goalCard).join("");
+        }
       }
 
       function addGoal() {
+        const empty = $("goals").querySelector(".empty-state");
+        if (empty) empty.remove();
         const wrap = document.createElement("div");
         wrap.innerHTML = goalCard({});
         $("goals").prepend(wrap.firstElementChild);
@@ -366,6 +1072,11 @@
           await api("DELETE", "/goals/" + el.dataset.id);
           toast("Deleted");
           el.remove();
+          const remaining = $("goals").querySelectorAll(".goal").length;
+          $("goals-count").textContent = remaining;
+          if (remaining === 0) {
+            $("goals").innerHTML = '<div class="empty-state">No goals yet — define what you\'re working toward.</div>';
+          }
         } catch (e) {
           toast(e.message, true);
         }
@@ -413,7 +1124,6 @@
         }
       }
 
-      // --- Tabs ---
       function switchTab(name) {
         const manage = name === "manage";
         $("tab-manage").classList.toggle("hidden", !manage);
@@ -426,20 +1136,37 @@
         }
       }
 
-      // --- AI chat ---
-      let chatHistory = []; // {role, content}
+      let chatHistory = [];
       let chatInited = false;
 
       function appendMsg(role, content) {
         const log = $("chat-log");
         const empty = log.querySelector(".chat-empty");
         if (empty) empty.remove();
+
+        const row = document.createElement("div");
+        row.className = "msg-row " + role;
+
+        if (role === "user" || role === "assistant") {
+          const avatar = document.createElement("div");
+          avatar.className = "msg-avatar";
+          if (role === "user") {
+            avatar.textContent = "You";
+            avatar.style.fontSize = "10px";
+            avatar.style.fontWeight = "600";
+          } else {
+            avatar.innerHTML = '<svg width="16" height="16"><use href="#icon-bot"/></svg>';
+          }
+          row.appendChild(avatar);
+        }
+
         const div = document.createElement("div");
-        div.className = "msg " + role;
+        div.className = "msg";
         div.textContent = content;
-        log.appendChild(div);
+        row.appendChild(div);
+        log.appendChild(row);
         log.scrollTop = log.scrollHeight;
-        return div;
+        return row;
       }
 
       async function ensureChatReady() {
@@ -524,8 +1251,6 @@
 
       $("login-pw")?.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
 
-      // Boot: if no password is configured server-side, show setup notice.
-      // Otherwise try the stored password, else show login.
       (async function () {
         let cfg = { configured: true };
         try {
