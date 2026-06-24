@@ -5,26 +5,21 @@ import {
   addProject,
   addDailyLog,
   getProject,
+  getUserByTelegramChatId,
+  linkTelegramByCode,
+  unlinkTelegram,
   setNextAction,
   setStatus,
   stampProgress,
   type NewProject,
   type ProjectStatus,
   type ProjectType,
+  type User,
   PROJECT_STATUSES,
 } from "./db.js";
-import {
-  buildStallSection,
-  formatDailyMessage,
-  formatProjectList,
-} from "./messages.js";
+import { buildStallSection, formatDailyMessage, formatProjectList } from "./messages.js";
 
-/** Statuses the user may set via /done or /status. */
-const SETTABLE_STATUSES: ProjectStatus[] = [
-  ...PROJECT_STATUSES,
-];
-
-// --- Conversation state (in-memory, single authorized user) ---------------
+const SETTABLE_STATUSES: ProjectStatus[] = [...PROJECT_STATUSES];
 
 interface AddDraft {
   kind: "add";
@@ -44,7 +39,6 @@ interface DoneFollowUp {
   projectId: number;
 }
 
-/** Awaiting the user's free-text reply to the evening check-in. */
 interface CheckinSession {
   kind: "checkin";
 }
@@ -65,30 +59,36 @@ function parseHours(text: string): number | null {
 
 export interface OperatorBot {
   bot: Telegraf;
-  /** Send today's allocation to the authorized chat. */
-  sendDailyMessage: () => Promise<void>;
-  /** Send the evening check-in prompt and arm the reply capture. */
-  sendCheckinMessage: () => Promise<void>;
+  sendDailyMessage: (user: User) => Promise<void>;
+  sendCheckinMessage: (user: User) => Promise<void>;
 }
 
 export function createBot(config: Config): OperatorBot {
   const bot = new Telegraf(config.telegramBotToken);
-  const authorizedChatId = config.telegramChatId;
-
-  // Per-user conversation state. Only one authorized user, but keyed by id.
   const sessions = new Map<string, Session>();
 
-  // Gatekeeper: only the configured chat id may interact at all.
-  bot.use(async (ctx, next) => {
+  async function requireLinkedUser(
+    ctx: { chat?: { id?: number }; reply: (s: string) => Promise<unknown> }
+  ): Promise<User | null> {
     const chatId = ctx.chat?.id?.toString();
-    if (chatId !== authorizedChatId) {
-      return; // silently ignore everyone else
+    if (!chatId) return null;
+    const user = await getUserByTelegramChatId(chatId);
+    if (!user) {
+      await ctx.reply(
+        "Your Telegram isn't linked yet.\n\n" +
+          "1. Sign up at the manoverboard.ai dashboard\n" +
+          "2. Open Settings → generate a link code\n" +
+          "3. Send /link YOUR_CODE here"
+      );
+      return null;
     }
-    return next();
-  });
+    return user;
+  }
 
-  bot.start((ctx) =>
-    ctx.reply(
+  bot.start(async (ctx) => {
+    const user = await requireLinkedUser(ctx);
+    if (!user) return;
+    await ctx.reply(
       [
         "\u2693 manoverboard.ai is online.",
         "",
@@ -100,69 +100,114 @@ export function createBot(config: Config): OperatorBot {
         "/done {id} — mark next action done",
         "/progress {id} [note] — log progress (resets the stall clock)",
         "/status {id} {status} — update status",
+        "/unlink — disconnect this Telegram from your account",
       ].join("\n")
-    )
-  );
+    );
+  });
+
+  bot.command("link", async (ctx) => {
+    const chatId = ctx.chat?.id?.toString();
+    if (!chatId) return;
+
+    const existing = await getUserByTelegramChatId(chatId);
+    if (existing) {
+      await ctx.reply(`Already linked to ${existing.email}. Use /unlink to disconnect first.`);
+      return;
+    }
+
+    const code = stripCommand(ctx.message.text).trim().toUpperCase();
+    if (!code) {
+      await ctx.reply("Usage: /link CODE\n\nGet your code from the dashboard Settings tab.");
+      return;
+    }
+
+    const user = await linkTelegramByCode(code, chatId);
+    if (!user) {
+      await ctx.reply("Invalid or expired link code. Generate a new one in the dashboard.");
+      return;
+    }
+
+    await ctx.reply(`\u2705 Linked to ${user.email}. Try /today to see your focus.`);
+  });
+
+  bot.command("unlink", async (ctx) => {
+    const chatId = ctx.chat?.id?.toString();
+    if (!chatId) return;
+    const user = await getUserByTelegramChatId(chatId);
+    if (!user) {
+      await ctx.reply("This chat isn't linked to any account.");
+      return;
+    }
+    await unlinkTelegram(user.id);
+    sessions.delete(chatId);
+    await ctx.reply("Telegram unlinked. Generate a new code in the dashboard to reconnect.");
+  });
 
   bot.command("today", async (ctx) => {
-    await ctx.reply(formatDailyMessage(config.stallDays));
+    const user = await requireLinkedUser(ctx);
+    if (!user) return;
+    await ctx.reply(await formatDailyMessage(user.id, user.stall_days));
   });
 
   bot.command("list", async (ctx) => {
-    await ctx.reply(formatProjectList());
+    const user = await requireLinkedUser(ctx);
+    if (!user) return;
+    await ctx.reply(await formatProjectList(user.id));
   });
 
-  // /next {id} {text}
   bot.command("next", async (ctx) => {
+    const user = await requireLinkedUser(ctx);
+    if (!user) return;
     const rest = stripCommand(ctx.message.text);
     const { id, remainder } = splitIdAndRest(rest);
     if (id === null || remainder.trim() === "") {
       await ctx.reply("Usage: /next {id} {the next concrete step}");
       return;
     }
-    if (!getProject(id)) {
+    if (!(await getProject(user.id, id))) {
       await ctx.reply(`No project with id ${id}.`);
       return;
     }
-    setNextAction(id, remainder.trim());
-    stampProgress(id);
+    await setNextAction(user.id, id, remainder.trim());
+    await stampProgress(user.id, id);
     await ctx.reply(`\u2705 Next action for #${id} updated.`);
   });
 
-  // /status {id} {status}
   bot.command("status", async (ctx) => {
+    const user = await requireLinkedUser(ctx);
+    if (!user) return;
     const rest = stripCommand(ctx.message.text);
     const { id, remainder } = splitIdAndRest(rest);
     const status = remainder.trim().toLowerCase() as ProjectStatus;
     if (id === null || !SETTABLE_STATUSES.includes(status)) {
-      await ctx.reply(
-        `Usage: /status {id} {${SETTABLE_STATUSES.join("|")}}`
-      );
+      await ctx.reply(`Usage: /status {id} {${SETTABLE_STATUSES.join("|")}}`);
       return;
     }
-    if (!getProject(id)) {
+    if (!(await getProject(user.id, id))) {
       await ctx.reply(`No project with id ${id}.`);
       return;
     }
-    setStatus(id, status);
+    await setStatus(user.id, id, status);
     await ctx.reply(`\u2705 #${id} is now "${status}".`);
   });
 
-  // /done {id} — mark current next action complete, prompt for the new one.
   bot.command("done", async (ctx) => {
+    const user = await requireLinkedUser(ctx);
+    if (!user) return;
+    const chatId = ctx.chat!.id.toString();
     const rest = stripCommand(ctx.message.text);
     const { id } = splitIdAndRest(rest);
     if (id === null) {
       await ctx.reply("Usage: /done {id}");
       return;
     }
-    const project = getProject(id);
+    const project = await getProject(user.id, id);
     if (!project) {
       await ctx.reply(`No project with id ${id}.`);
       return;
     }
-    stampProgress(id);
-    sessions.set(authorizedChatId, { kind: "done_next_action", projectId: id });
+    await stampProgress(user.id, id);
+    sessions.set(chatId, { kind: "done_next_action", projectId: id });
     await ctx.reply(
       [
         `\uD83C\uDF89 Nice — marked "${project.next_action ?? "(no action)"}" done for ${project.name}.`,
@@ -173,35 +218,38 @@ export function createBot(config: Config): OperatorBot {
     );
   });
 
-  // /progress {id} [note] — stamp progress without changing the next action.
   bot.command("progress", async (ctx) => {
+    const user = await requireLinkedUser(ctx);
+    if (!user) return;
     const rest = stripCommand(ctx.message.text);
     const { id, remainder } = splitIdAndRest(rest);
     if (id === null) {
       await ctx.reply("Usage: /progress {id} [optional note]");
       return;
     }
-    const project = getProject(id);
+    const project = await getProject(user.id, id);
     if (!project) {
       await ctx.reply(`No project with id ${id}.`);
       return;
     }
-    stampProgress(id);
+    await stampProgress(user.id, id);
     const note = remainder.trim();
     if (note) {
-      addDailyLog(`#${id} ${project.name}: ${note}`);
+      await addDailyLog(user.id, `#${id} ${project.name}: ${note}`);
     }
     await ctx.reply(
       `\u2705 Logged progress on #${id} (${project.name}).${note ? " Note saved." : ""}`
     );
   });
 
-  // /skip — only meaningful as a reply to the evening check-in.
   bot.command("skip", async (ctx) => {
-    const session = sessions.get(authorizedChatId);
+    const user = await requireLinkedUser(ctx);
+    if (!user) return;
+    const chatId = ctx.chat!.id.toString();
+    const session = sessions.get(chatId);
     if (session?.kind === "checkin") {
-      sessions.delete(authorizedChatId);
-      const stalls = buildStallSection(config.stallDays);
+      sessions.delete(chatId);
+      const stalls = await buildStallSection(user.id, user.stall_days);
       await ctx.reply(
         stalls
           ? `No check-in logged tonight.\n\n${stalls}`
@@ -212,73 +260,78 @@ export function createBot(config: Config): OperatorBot {
     }
   });
 
-  // /add — guided, one question at a time.
   bot.command("add", async (ctx) => {
-    sessions.set(authorizedChatId, {
-      kind: "add",
-      step: "name",
-      data: {},
-    });
+    const user = await requireLinkedUser(ctx);
+    if (!user) return;
+    const chatId = ctx.chat!.id.toString();
+    sessions.set(chatId, { kind: "add", step: "name", data: {} });
     await ctx.reply("Adding a project. What's its name? (or /cancel)");
   });
 
   bot.command("cancel", async (ctx) => {
-    if (sessions.delete(authorizedChatId)) {
+    const chatId = ctx.chat?.id?.toString();
+    if (!chatId) return;
+    if (sessions.delete(chatId)) {
       await ctx.reply("Cancelled.");
     } else {
       await ctx.reply("Nothing to cancel.");
     }
   });
 
-  // Free-text handler drives /add, the /done follow-up, and the check-in reply.
   bot.on(message("text"), async (ctx) => {
     const text = ctx.message.text;
-    if (text.startsWith("/")) return; // commands handled above
+    if (text.startsWith("/")) return;
 
-    const session = sessions.get(authorizedChatId);
-    if (!session) return; // nothing in progress; ignore stray text
+    const chatId = ctx.chat?.id?.toString();
+    if (!chatId) return;
 
-    // /add takes priority so a check-in firing mid-add can't collide with it.
+    const user = await getUserByTelegramChatId(chatId);
+    if (!user) return;
+
+    const session = sessions.get(chatId);
+    if (!session) return;
+
     if (session.kind === "add") {
-      await handleAddStep(ctx, session, sessions, authorizedChatId, text);
+      await handleAddStep(ctx, user.id, session, sessions, chatId, text);
       return;
     }
 
     if (session.kind === "done_next_action") {
-      setNextAction(session.projectId, text.trim());
-      stampProgress(session.projectId);
-      sessions.delete(authorizedChatId);
+      await setNextAction(user.id, session.projectId, text.trim());
+      await stampProgress(user.id, session.projectId);
+      sessions.delete(chatId);
       await ctx.reply(`\u2705 New next action set for #${session.projectId}.`);
       return;
     }
 
     if (session.kind === "checkin") {
-      addDailyLog(text.trim());
-      sessions.delete(authorizedChatId);
-      const stalls = buildStallSection(config.stallDays);
+      await addDailyLog(user.id, text.trim());
+      sessions.delete(chatId);
+      const stalls = await buildStallSection(user.id, user.stall_days);
       await ctx.reply(
         stalls
           ? `\u2705 Logged. Thanks.\n\n${stalls}`
           : "\u2705 Logged. Thanks. Nothing stalling right now — nice."
       );
-      return;
     }
   });
 
-  const sendDailyMessage = async (): Promise<void> => {
+  const sendDailyMessage = async (user: User): Promise<void> => {
+    if (!user.telegram_chat_id) return;
     await bot.telegram.sendMessage(
-      authorizedChatId,
-      formatDailyMessage(config.stallDays)
+      user.telegram_chat_id,
+      await formatDailyMessage(user.id, user.stall_days)
     );
   };
 
-  const sendCheckinMessage = async (): Promise<void> => {
-    // Don't clobber an in-progress flow (e.g. /add); it keeps priority.
-    if (!sessions.has(authorizedChatId)) {
-      sessions.set(authorizedChatId, { kind: "checkin" });
+  const sendCheckinMessage = async (user: User): Promise<void> => {
+    if (!user.telegram_chat_id) return;
+    const chatId = user.telegram_chat_id;
+    if (!sessions.has(chatId)) {
+      sessions.set(chatId, { kind: "checkin" });
     }
     await bot.telegram.sendMessage(
-      authorizedChatId,
+      chatId,
       "\uD83C\uDF19 What did you move forward today? Reply with what you got done, or /skip."
     );
   };
@@ -288,6 +341,7 @@ export function createBot(config: Config): OperatorBot {
 
 async function handleAddStep(
   ctx: { reply: (s: string) => Promise<unknown> },
+  userId: number,
   session: AddDraft,
   sessions: Map<string, Session>,
   chatId: string,
@@ -365,7 +419,7 @@ async function handleAddStep(
 
     case "next_action": {
       d.next_action = value;
-      const project = addProject({
+      const project = await addProject(userId, {
         name: d.name!,
         type: d.type!,
         revenue_potential: d.revenue_potential!,
@@ -384,12 +438,10 @@ async function handleAddStep(
   }
 }
 
-/** Remove the leading "/command" (and optional @botname) token. */
 function stripCommand(text: string): string {
   return text.replace(/^\/\S+\s*/, "");
 }
 
-/** Split "{id} rest of text" into a numeric id and the remainder. */
 function splitIdAndRest(text: string): { id: number | null; remainder: string } {
   const trimmed = text.trim();
   const match = /^(\d+)\b\s*(.*)$/s.exec(trimmed);

@@ -1,10 +1,6 @@
 import { config as loadDotenv } from "dotenv";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 loadDotenv();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** True when running on Railway (or a Railway-compatible host). */
 export function isRailway(): boolean {
@@ -16,39 +12,22 @@ export function isRailway(): boolean {
 }
 
 /**
- * Absolute path to the SQLite database file.
- *
- * Resolution order:
- * 1. `DATABASE_PATH` env var when set (relative paths on Railway resolve under `/data`)
- * 2. `/data/operator.db` on Railway (expects a persistent volume at `/data`)
- * 3. `<project>/data/operator.db` for local development
- *
- * On hosts with an ephemeral filesystem, set `DATABASE_PATH` to a path on a
- * mounted persistent volume so goals, projects, and logs survive restarts.
+ * PostgreSQL connection string. Required — set `DATABASE_URL` to your Railway
+ * Postgres (or local) instance.
  */
-function resolveDbPath(): string {
-  const explicit = process.env.DATABASE_PATH?.trim();
-  if (explicit) {
-    if (path.isAbsolute(explicit)) return path.resolve(explicit);
-    // Relative paths on Railway almost always mean a misconfigured deploy
-    // (ephemeral app dir). Force them onto the volume mount.
-    if (isRailway()) return path.resolve("/data", explicit);
-    return path.resolve(explicit);
+export function getDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    throw new Error(
+      "Missing required environment variable: DATABASE_URL. " +
+        "Add a Postgres service and link DATABASE_URL (see README)."
+    );
   }
-
-  if (isRailway()) return path.resolve("/data/operator.db");
-
-  return path.resolve(__dirname, "..", "data", "operator.db");
+  return url;
 }
 
-export const DB_PATH = resolveDbPath();
-
-/** True when running on Railway without an explicit DATABASE_PATH override. */
-export const DB_USES_RAILWAY_DEFAULT =
-  !process.env.DATABASE_PATH?.trim() && isRailway();
-
 /**
- * Whether to insert the built-in demo projects/goals on a fresh database.
+ * Whether to insert demo projects/goals when a new user signs up.
  * Default: on locally only. On Railway/production, never — unless explicitly enabled.
  */
 export function shouldSeedDemoData(): boolean {
@@ -60,29 +39,23 @@ export function shouldSeedDemoData(): boolean {
 
 export interface Config {
   telegramBotToken: string;
-  telegramChatId: string;
-  /** Daily nudge time in 24h "HH:MM" form. */
-  dailyTime: string;
-  /** Evening check-in time in 24h "HH:MM" form. */
-  checkinTime: string;
-  /** An active project with no progress in this many days is "stalling". */
-  stallDays: number;
-  /** IANA timezone string used for cron correctness. */
-  tz: string;
   /** Anthropic API key for the AI chat agent. Empty = agent disabled. */
   anthropicApiKey: string;
   /** Anthropic model id for the chat agent. */
   anthropicModel: string;
   /** HTTP port for the web dashboard (Railway sets PORT). */
   port: number;
-  /**
-   * Password gating the web dashboard. When empty, the web server is NOT
-   * started — so the dashboard is never exposed unauthenticated.
-   */
-  dashboardPassword: string;
+  /** Default timezone for new accounts (users can override in settings). */
+  defaultTz: string;
+  /** Default daily nudge time for new accounts. */
+  defaultDailyTime: string;
+  /** Default evening check-in time for new accounts. */
+  defaultCheckinTime: string;
+  /** Default stall threshold for new accounts. */
+  defaultStallDays: number;
 }
 
-const DAILY_TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -95,43 +68,33 @@ function requireEnv(name: string): string {
   return value.trim();
 }
 
+function parseTime(name: string, fallback: string): string {
+  const value = (process.env[name] ?? fallback).trim();
+  if (!TIME_RE.test(value)) {
+    throw new Error(`${name} must be 24h "HH:MM" (got "${value}"), e.g. 07:30.`);
+  }
+  return value;
+}
+
 /**
  * Load and validate environment configuration. Throws with a clear message if
  * a required value is missing or malformed, so boot fails fast.
  */
 export function loadConfig(): Config {
   const telegramBotToken = requireEnv("TELEGRAM_BOT_TOKEN");
-  const telegramChatId = requireEnv("TELEGRAM_CHAT_ID");
 
-  if (!/^-?\d+$/.test(telegramChatId)) {
-    throw new Error(
-      `TELEGRAM_CHAT_ID must be a numeric chat id (got "${telegramChatId}"). See README for how to find it.`
-    );
-  }
-
-  const dailyTime = (process.env.DAILY_TIME ?? "07:30").trim();
-  if (!DAILY_TIME_RE.test(dailyTime)) {
-    throw new Error(
-      `DAILY_TIME must be 24h "HH:MM" (got "${dailyTime}"), e.g. 07:30.`
-    );
-  }
-
-  const checkinTime = (process.env.CHECKIN_TIME ?? "20:00").trim();
-  if (!DAILY_TIME_RE.test(checkinTime)) {
-    throw new Error(
-      `CHECKIN_TIME must be 24h "HH:MM" (got "${checkinTime}"), e.g. 20:00.`
-    );
-  }
+  const defaultDailyTime = parseTime("DAILY_TIME", "07:30");
+  const defaultCheckinTime = parseTime("CHECKIN_TIME", "20:00");
 
   const stallDaysRaw = (process.env.STALL_DAYS ?? "4").trim();
-  const stallDays = Number(stallDaysRaw);
-  if (!Number.isInteger(stallDays) || stallDays < 1) {
+  const defaultStallDays = Number(stallDaysRaw);
+  if (!Number.isInteger(defaultStallDays) || defaultStallDays < 1) {
     throw new Error(
       `STALL_DAYS must be a positive whole number (got "${stallDaysRaw}"), e.g. 4.`
     );
   }
 
-  const tz = (process.env.TZ ?? "America/Chicago").trim();
+  const defaultTz = (process.env.TZ ?? "America/Chicago").trim();
   const anthropicApiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
   const anthropicModel = (process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6").trim();
 
@@ -141,27 +104,26 @@ export function loadConfig(): Config {
     throw new Error(`PORT must be a valid port number (got "${portRaw}").`);
   }
 
-  const dashboardPassword = (process.env.DASHBOARD_PASSWORD ?? "").trim();
+  // Ensure DATABASE_URL is present at boot.
+  getDatabaseUrl();
 
   return {
     telegramBotToken,
-    telegramChatId,
-    dailyTime,
-    checkinTime,
-    stallDays,
-    tz,
     anthropicApiKey,
     anthropicModel,
     port,
-    dashboardPassword,
+    defaultTz,
+    defaultDailyTime,
+    defaultCheckinTime,
+    defaultStallDays,
   };
 }
 
-/** Parse "HH:MM" into a node-cron expression that fires daily at that time. */
-export function dailyTimeToCron(dailyTime: string): string {
-  const match = DAILY_TIME_RE.exec(dailyTime);
+/** Parse "HH:MM" into a node-cron expression that fires every minute at that time. */
+export function timeToMinuteCron(time: string): string {
+  const match = TIME_RE.exec(time);
   if (!match) {
-    throw new Error(`Invalid DAILY_TIME: ${dailyTime}`);
+    throw new Error(`Invalid time: ${time}`);
   }
   const hour = Number(match[1]);
   const minute = Number(match[2]);

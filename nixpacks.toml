@@ -1,9 +1,2 @@
 # Railway/Nixpacks build config.
-#
-# Node is pinned to 20 (LTS) via package.json "engines" and .nvmrc so that
-# better-sqlite3 installs its PREBUILT binary (no compile needed). The apt
-# packages below are a safety net: if a prebuilt binary is ever unavailable and
-# better-sqlite3 falls back to `node-gyp rebuild`, python3 + a C/C++ toolchain
-# must be present, otherwise the build fails with "Could not find any Python".
-[phases.setup]
-aptPkgs = ["python3", "build-essential"]
+# Node is pinned to 20 (LTS) via package.json "engines" and .nvmrc.

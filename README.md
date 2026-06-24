@@ -2,10 +2,11 @@
 
 Your side-hustle focus assistant.
 A lightweight personal assistant + business analyst for a dev side-hustle —
-It is **not** a chat app, Kanban board, or SaaS — it's a **cron job + a SQLite
-database + a Telegram bot**. It runs on a schedule, looks at your projects, and
-pushes you **one clear thing to do each day** so you make money without burning
-out.
+It is **not** a chat app, Kanban board, or generic SaaS — it's a **cron job + a
+PostgreSQL database + a Telegram bot + a web dashboard**. It runs on a schedule,
+looks at your projects, and pushes you **one clear thing to do each day** so you
+make money without burning out. Multiple users can sign up; each account's data
+is isolated by `user_id`.
 
 ## Core idea — dual-track prioritization
 
@@ -39,10 +40,11 @@ score = (revenue_potential * confidence * speed) / max(effort_remaining, 1)
 ## Stack
 
 - TypeScript on Node 20+ (run directly with [`tsx`](https://github.com/privatenumber/tsx))
-- [`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3) — one local DB file
-- [`node-cron`](https://github.com/node-cron/node-cron) — scheduler
-- [`telegraf`](https://telegraf.js.org/) — Telegram bot
-- [`express`](https://expressjs.com/) — optional web dashboard API (vanilla HTML/JS frontend, no build step)
+- [`pg`](https://node-postgres.com/) — PostgreSQL (multi-user, row-level isolation)
+- [`bcryptjs`](https://github.com/dcodeIO/bcrypt.js) — password hashing
+- [`node-cron`](https://github.com/node-cron/node-cron) — per-user timezone-aware scheduler
+- [`telegraf`](https://telegraf.js.org/) — Telegram bot (linked per account)
+- [`express`](https://expressjs.com/) — web dashboard API + signup/login (vanilla HTML/JS, no build step)
 - [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) — optional AI chat agent (`claude-sonnet-4-6`)
 - `dotenv` — config
 
@@ -54,27 +56,26 @@ score = (revenue_potential * confidence * speed) / max(effort_remaining, 1)
 npm install
 ```
 
-> `better-sqlite3` is a native module and compiles on install. You need a
-> working build toolchain (on Debian/Ubuntu: `apt-get install -y build-essential python3`).
+### 2. Add PostgreSQL
 
-### 2. Create a Telegram bot and get a token
+Locally, run Postgres (Docker example):
+
+```bash
+docker run -d --name manoverboard-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+export DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres
+export DATABASE_SSL=false
+```
+
+On Railway: add a **Postgres** service. Railway injects `DATABASE_URL` automatically
+when you reference it on your app service.
+
+### 3. Create a Telegram bot and get a token
 
 1. In Telegram, open a chat with [**@BotFather**](https://t.me/BotFather).
 2. Send `/newbot` and follow the prompts (give it a name and a username ending
    in `bot`).
 3. BotFather replies with a token like `123456789:AAExxxxxxxxxxxxxxxxxxxxxxxxxxx`.
    That's your `TELEGRAM_BOT_TOKEN`.
-
-### 3. Find your numeric chat id
-
-1. **Send any message to your new bot first** (e.g. `hi`). The bot can't message
-   you until you've started a chat with it.
-2. Open this URL in a browser, substituting your token:
-   `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
-3. Look for `"chat":{"id":123456789,...}`. That number is your
-   `TELEGRAM_CHAT_ID`.
-   - Alternatively, message [`@userinfobot`](https://t.me/userinfobot) and it
-     replies with your id.
 
 ### 4. Fill in `.env`
 
@@ -86,14 +87,21 @@ Then edit `.env`:
 
 ```ini
 TELEGRAM_BOT_TOKEN=123456789:AAE...     # from @BotFather
-TELEGRAM_CHAT_ID=123456789              # your numeric chat id
-DAILY_TIME=07:30                        # 24h local time for the daily nudge
-CHECKIN_TIME=20:00                      # 24h local time for the evening check-in
-STALL_DAYS=4                            # no progress in this many days = "stalling"
-TZ=America/Chicago                      # for cron correctness
-ANTHROPIC_API_KEY=                      # Phase 2 only — leave blank
-DATABASE_PATH=                          # optional; leave blank locally (defaults to data/operator.db)
+DATABASE_URL=postgres://...             # PostgreSQL connection string
+DATABASE_SSL=false                      # local only; omit on Railway
+DAILY_TIME=07:30                        # default for new signups
+CHECKIN_TIME=20:00                      # default for new signups
+STALL_DAYS=4                            # default stall threshold
+TZ=America/Chicago                      # default timezone for new signups
+ANTHROPIC_API_KEY=                      # optional — enables AI assistant
 ```
+
+### 5. Sign up and link Telegram
+
+1. Start the app (`npm run dev`) and open the dashboard.
+2. **Create an account** (email + password).
+3. Open **Settings → Generate link code**, then send `/link YOUR_CODE` to your bot.
+4. Per-user schedule (daily nudge, check-in, timezone) is editable in Settings.
 
 ## Run
 
@@ -108,18 +116,13 @@ npm run dev      # with auto-reload while developing
 npm start        # plain run
 ```
 
-On first run the database auto-creates at `data/operator.db`. Locally it is
-seeded with example projects (2 fast, 2 passive) unless `SEED_DEMO_DATA=false`.
-**On Railway, demo seed is disabled** — you start empty. Attach a volume at
-`/data` and set `DATABASE_PATH=/data/operator.db` or data is lost on every deploy.
+On first signup the database auto-creates tables. Locally, new accounts may get
+demo projects if `SEED_DEMO_DATA` is enabled (default locally, off on Railway).
 
-### One-shot (for GitHub Actions cron)
-
-Builds today's allocation, sends it once, and exits. Drop-in alternative to the
-long-running scheduler:
+### One-shot daily nudge (for external cron)
 
 ```bash
-npm run daily
+npm run daily -- user@example.com
 ```
 
 Example GitHub Actions cron (`.github/workflows/daily.yml`):
@@ -136,102 +139,66 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm ci
-      - run: npm run daily
+      - run: npm run daily -- user@example.com
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TZ: America/Chicago
 ```
 
-> Note: GitHub Actions has an ephemeral filesystem, so the SQLite file does not
-> persist between runs there. For a persistent DB use the long-running process
-> on a host like Railway/Fly, or commit/restore the DB as a workflow artifact.
+> The long-running process on Railway is preferred — it handles per-user schedules
+> automatically. Use `npm run daily` only for one-off sends or external cron.
 
 ## Deploy to Railway (recommended host)
 
-manoverboard.ai is a long-running worker (no HTTP server, no inbound port needed — the
-Telegram bot uses long polling). [Railway](https://railway.com) runs this kind
-of process well. The repo ships a `railway.json` so the service builds with
-Nixpacks and runs `npm start` with an automatic restart-on-failure policy.
+manoverboard.ai is a long-running process: Telegram bot (long polling), per-user
+scheduler, and web dashboard. [Railway](https://railway.com) runs this well. The
+repo ships `railway.json` so the service builds with Nixpacks and runs `npm start`.
 
-**The one thing you must not skip:** Railway's filesystem is ephemeral and is
-wiped on every redeploy. Attach a **persistent volume** and point the database
-at it, or you'll lose your projects on each deploy.
+**You need Postgres.** Add a Railway Postgres service and link `DATABASE_URL` to
+your app. No volume mount is required for the database — Postgres persists data
+across deploys.
 
 ### Steps
 
-1. **Create the service.** In Railway, *New Project → Deploy from GitHub repo*
-   and pick this repo. Railway detects `railway.json` and Node automatically.
-   (CLI alternative: `npm i -g @railway/cli`, then `railway login` and
-   `railway up` from the repo root.)
-2. **Add a persistent volume.** On the service: *Settings → Volumes → Add
-   Volume*, mount path `/data`. This directory now survives redeploys.
-3. **Set environment variables.** On the service *Variables* tab, add:
+1. **Create the service.** *New Project → Deploy from GitHub repo* and pick this repo.
+2. **Add Postgres.** *New → Database → PostgreSQL*. On your app service Variables,
+   add a reference to `${{Postgres.DATABASE_URL}}` as `DATABASE_URL`.
+3. **Set environment variables:**
 
    ```ini
    TELEGRAM_BOT_TOKEN=123456789:AAE...   # from @BotFather
-   TELEGRAM_CHAT_ID=123456789            # your numeric chat id
-   DAILY_TIME=07:30                      # local time of the daily nudge
-   CHECKIN_TIME=20:00                    # local time of the evening check-in
-   STALL_DAYS=4                          # no progress in N days = "stalling"
-   TZ=America/Chicago                    # MUST match the times' locale
-   DATABASE_PATH=/data/operator.db       # <-- points the DB at the volume
-   DASHBOARD_PASSWORD=choose-a-strong-one # enables the web dashboard (see below)
-   ANTHROPIC_API_KEY=sk-ant-...          # enables the Assistant AI agent (optional)
-   # ANTHROPIC_MODEL=claude-sonnet-4-6   # optional model override
+   DAILY_TIME=07:30                      # default for new signups
+   CHECKIN_TIME=20:00                    # default for new signups
+   STALL_DAYS=4
+   TZ=America/Chicago
+   ANTHROPIC_API_KEY=sk-ant-...          # optional — AI assistant
    ```
 
-   `DATABASE_PATH` must live under the volume mount path (`/data`). The DB and
-   its schema/seed are created automatically on first boot. Don't set `PORT` —
-   Railway injects it.
-4. **Expose the dashboard.** On the service: *Settings → Networking → Generate
-   Domain* to get a public `https://…up.railway.app` URL. Open it — if you
-   haven't set `DASHBOARD_PASSWORD` yet, the page tells you to; once it's set,
-   log in with it.
-5. **Deploy.** Railway builds and starts the service. Check the deploy logs for:
+4. **Expose the dashboard.** *Settings → Networking → Generate Domain*.
+5. **Sign up** at your domain, then link Telegram in Settings.
 
-   ```
-   [db] ready
-   [scheduler] daily nudge scheduled at 07:30 (America/Chicago) [cron: "30 7 * * *"]
-   [web] dashboard listening on port 8080
-   [bot] online and listening for commands
-   ```
-
-   Then message your bot `/today` to confirm it responds, and open the domain
-   to edit projects/goals.
+Check deploy logs for `[db] postgres ready`, `[web] dashboard listening`, and
+`[bot] online and listening for commands`.
 
 ### Notes & gotchas
 
-- **`TZ` matters.** `node-cron` fires `DAILY_TIME` in the `TZ` you set, so make
-  sure they agree (e.g. `07:30` + `America/Chicago`).
-- **One replica only.** Keep `numReplicas: 1` (already set in `railway.json`).
-  Two instances would double-send the daily message and both long-poll the same
-  bot. SQLite is single-file and not meant for concurrent writers either.
-- **`409: Conflict` from Telegram = two instances polling the same token.**
-  Only one process may long-poll a bot at a time. Causes: an overlapping deploy
-  still shutting down (transient — the boot now retries with backoff and the web
-  dashboard stays up regardless), a duplicate Railway service/deployment using
-  the same `TELEGRAM_BOT_TOKEN`, or the bot also running somewhere else (e.g.
-  locally). Make sure exactly **one** instance runs. If a stuck deployment keeps
-  conflicting, redeploy so only the newest is active, and don't reuse the same
-  token across two services.
-- **Generate a domain to reach the dashboard.** The web server always listens,
-  but it's only reachable once you generate a domain (step 4). Set a **strong**
-  `DASHBOARD_PASSWORD` before exposing it, since the URL is public.
-- **Node is pinned to 20 (LTS).** `package.json` `engines` (`20.x`), `.nvmrc`,
-  and `nixpacks.toml` all agree on Node 20 so `better-sqlite3` installs its
-  **prebuilt binary** instead of compiling from source. (On newer Node majors
-  there may be no prebuilt binary yet, which forces a `node-gyp` build that
-  needs Python + a C/C++ toolchain — `nixpacks.toml` installs those as a safety
-  net, but pinning Node 20 avoids the compile entirely.)
+- **Per-user schedules.** Each account sets daily nudge time, check-in time, and
+  timezone in the dashboard Settings tab. Env `DAILY_TIME` / `CHECKIN_TIME` /
+  `TZ` are defaults for **new signups** only.
+- **Multiple replicas are OK** with Postgres (unlike SQLite). Still avoid running
+  the same bot token in two places — only one process should long-poll Telegram.
+- **`409: Conflict` from Telegram** means two instances are polling the same bot
+  token. Stop duplicate deployments or local runs.
 
 ## Telegram commands
 
-Only your configured `TELEGRAM_CHAT_ID` is allowed to interact; everyone else is
-ignored.
+Link your account first (`/link CODE` from dashboard Settings). Then:
 
 | Command | What it does |
 | --- | --- |
+| `/link CODE` | Link this Telegram chat to your dashboard account |
+| `/unlink` | Disconnect Telegram from your account |
 | `/today` | Re-send today's allocation on demand |
 | `/list` | List active projects with id, name, type, score (compact) |
 | `/add` | Guided add, one question at a time (name → type → revenue 1-5 → confidence 1-5 → time_to_cash 1-5 → effort hrs → next action) |
@@ -244,24 +211,15 @@ ignored.
 
 ## Web dashboard
 
-An optional web UI for editing **projects (tasks)** and **goals** from a browser
-— handy when you want to bulk-edit or write longer notes than is comfortable in
-Telegram. It runs in the same process as the bot and shares the same SQLite
-database, so edits show up immediately in `/today`, `/list`, etc.
+Sign up with email/password. Each account has isolated projects, goals, and
+settings. The dashboard runs in the same process as the bot and shares Postgres,
+so edits show up immediately in `/today`, `/list`, etc.
 
-- **Always served, but gated.** The web server always starts (Railway needs a
-  listening port for its domain). All `/api/*` routes require the
-  `DASHBOARD_PASSWORD` (sent as an `x-dashboard-password` header). Until that
-  password is set, every API route returns `503` and the page shows a "set a
-  password" notice — no data is ever served unauthenticated (an empty password
-  can't authenticate). Use a strong password on Railway since the URL is public,
-  and rely on Railway's HTTPS.
-- **No build step.** The frontend is a single static `public/index.html`
-  (vanilla HTML/CSS/JS). The backend is a small Express API in `src/server.ts`.
-- **What you can do:** view all projects with their live priority score; create,
-  edit every field of, and delete projects; create/edit/delete goals; and — on
-  the **Assistant** tab — chat with an AI agent that has your goals, projects,
-  scores, and today's allocation as live context.
+- **Auth:** `POST /api/auth/signup`, `POST /api/auth/login` return a bearer token.
+  All `/api/*` data routes require `Authorization: Bearer <token>`.
+- **Settings tab:** per-user schedule (daily nudge, check-in, timezone, stall days)
+  and Telegram link code generation.
+- **No build step.** Static `public/index.html` + Express API in `src/server.ts`.
 
 ### AI chat agent (Assistant tab)
 
@@ -284,14 +242,18 @@ state.
 Run locally:
 
 ```bash
-DASHBOARD_PASSWORD=dev npm run dev
-# then open http://localhost:3000 and log in with "dev"
+# set DATABASE_URL and DATABASE_SSL=false, then:
+npm run dev
+# open http://localhost:3000 and create an account
 ```
 
-API (all require the `x-dashboard-password` header):
+API (authenticated routes require `Authorization: Bearer <token>`):
 
 | Method & path | Purpose |
 | --- | --- |
+| `POST /api/auth/signup` · `POST /api/auth/login` | Create account / sign in |
+| `GET /api/auth/me` · `PATCH /api/auth/me` | Profile and schedule settings |
+| `POST /api/auth/telegram-link` | Generate Telegram link code |
 | `GET /api/projects` · `POST /api/projects` | List / create projects |
 | `PATCH /api/projects/:id` · `DELETE /api/projects/:id` | Edit / delete a project |
 | `GET /api/goals` · `POST /api/goals` | List / create goals |

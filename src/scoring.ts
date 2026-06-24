@@ -1,4 +1,4 @@
-import { getActiveProjects, type Project } from "./db.js";
+import type { Project } from "./db.js";
 
 export interface ScoredProject {
   project: Project;
@@ -6,21 +6,12 @@ export interface ScoredProject {
 }
 
 export interface DayAllocation {
-  /** Highest-scoring active fast (income) project, if any. */
   primary: ScoredProject | null;
-  /** Highest-scoring active passive project, if any. Time-boxed to 30 min. */
   secondary: ScoredProject | null;
-  /** Active projects with a deadline within 3 days (soonest first). */
   deadlineWarnings: Project[];
-  /** True when there are no active fast projects at all. */
   noFastWork: boolean;
 }
 
-/**
- * Higher = do sooner.
- *   speed = 6 - time_to_cash  (invert: faster cash scores higher)
- *   score = (revenue_potential * confidence * speed) / max(effort_remaining, 1)
- */
 export function score(p: Project): number {
   const speed = 6 - p.time_to_cash;
   return (p.revenue_potential * p.confidence * speed) / Math.max(p.effort_remaining, 1);
@@ -32,14 +23,12 @@ function scoreAndSort(projects: Project[]): ScoredProject[] {
     .sort((a, b) => b.score - a.score);
 }
 
-/** Number of whole days elapsed since the given ISO datetime (null if invalid). */
 function daysSince(isoDateTime: string): number | null {
   const past = new Date(isoDateTime);
   if (Number.isNaN(past.getTime())) return null;
   return Math.floor((Date.now() - past.getTime()) / 86_400_000);
 }
 
-/** Number of whole days from today (UTC date) until the given ISO date. */
 function daysUntil(isoDate: string): number | null {
   const target = new Date(isoDate);
   if (Number.isNaN(target.getTime())) return null;
@@ -49,12 +38,7 @@ function daysUntil(isoDate: string): number | null {
   return Math.round((t - n) / 86_400_000);
 }
 
-/**
- * Dual-track allocation. Fast/income work is always the primary candidate;
- * passive work can never be promoted to primary while any fast project is
- * active. Deadlines within 3 days are surfaced regardless of score.
- */
-export function allocateDay(projects: Project[] = getActiveProjects()): DayAllocation {
+export function allocateDay(projects: Project[]): DayAllocation {
   const active = projects.filter((p) => p.status === "active");
 
   const fast = scoreAndSort(active.filter((p) => p.type === "fast"));

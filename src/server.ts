@@ -1,19 +1,31 @@
 import express, { type Request, type Response, type NextFunction } from "express";
-import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Config } from "./config.js";
+import {
+  AuthError,
+  login,
+  logout,
+  resolveUserFromToken,
+  signup,
+  toPublicUser,
+} from "./auth.js";
 import {
   addGoal,
   addProject,
   deleteGoal,
   deleteProject,
+  generateLinkCode,
   getAllProjects,
   getGoal,
   getGoals,
   getProject,
+  getUserById,
+  setTelegramLinkCode,
+  unlinkTelegram,
   updateGoal,
   updateProject,
+  updateUserSettings,
   PROJECT_STATUSES,
   PROJECT_TYPES,
   type NewProject,
@@ -26,19 +38,16 @@ import { chat, isAiConfigured, type ChatMessage } from "./ai.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 
-/** Constant-time string comparison that doesn't leak length via early return. */
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) {
-    // Still run a compare to keep timing roughly constant.
-    crypto.timingSafeEqual(ab, ab);
-    return false;
-  }
-  return crypto.timingSafeEqual(ab, bb);
-}
-
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: number;
+    }
+  }
+}
 
 function toNullableString(v: unknown): string | null {
   if (v === null || v === undefined) return null;
@@ -64,7 +73,6 @@ function validate1to5(v: unknown, field: string): { value: number } | { error: s
   return { value: n };
 }
 
-/** Validate a full project payload for creation. */
 function validateNewProject(body: Record<string, unknown>): { value: NewProject } | { error: string } {
   const name = toNullableString(body.name);
   if (!name) return { error: "name is required" };
@@ -105,7 +113,6 @@ function validateNewProject(body: Record<string, unknown>): { value: NewProject 
   };
 }
 
-/** Validate a partial project payload for editing. */
 function validateProjectPatch(body: Record<string, unknown>): { value: ProjectPatch } | { error: string } {
   const patch: ProjectPatch = {};
 
@@ -153,86 +160,174 @@ function parseId(req: Request): number | null {
   return Number.isInteger(id) ? id : null;
 }
 
+function bearerToken(req: Request): string | null {
+  const header = req.header("authorization") ?? "";
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  return match ? match[1].trim() : null;
+}
+
 /** Build the Express app. Caller is responsible for listen(). */
 export function createServer(config: Config): express.Express {
   const app = express();
   app.use(express.json());
 
-  // Public, unauthenticated: lets the frontend know whether a password has been
-  // configured so it can show the login screen vs a "set a password" notice.
-  app.get("/api/config", (_req, res) => {
-    res.json({ configured: config.dashboardPassword.length > 0 });
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true });
   });
 
-  // Auth gate for the API. The static shell is public (it holds no data).
-  const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-    // No password configured → the dashboard is locked entirely (an empty
-    // password must never authenticate). Serve no data.
-    if (!config.dashboardPassword) {
-      res.status(503).json({
-        error: "Dashboard not configured. Set DASHBOARD_PASSWORD to enable it.",
-      });
-      return;
+  // --- Public auth routes ---
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const body = req.body ?? {};
+      const email = String(body.email ?? "").trim();
+      const password = String(body.password ?? "");
+      const name = toNullableString(body.name);
+      const result = await signup(config, email, password, name);
+      res.status(201).json(result);
+    } catch (err) {
+      if (err instanceof AuthError) return res.status(400).json({ error: err.message });
+      throw err;
     }
-    const provided =
-      (req.header("x-dashboard-password") ?? "").toString() ||
-      (req.query.key ? String(req.query.key) : "");
-    if (!provided || !safeEqual(provided, config.dashboardPassword)) {
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const body = req.body ?? {};
+      const email = String(body.email ?? "").trim();
+      const password = String(body.password ?? "");
+      const result = await login(email, password);
+      res.json(result);
+    } catch (err) {
+      if (err instanceof AuthError) return res.status(401).json({ error: err.message });
+      throw err;
+    }
+  });
+
+  const requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const token = bearerToken(req);
+    if (!token) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
+    const user = await resolveUserFromToken(token);
+    if (!user) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    req.userId = user.id;
     next();
   };
+
+  app.post("/api/auth/logout", requireAuth, async (req, res) => {
+    const token = bearerToken(req);
+    if (token) await logout(token);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
+    const user = await getUserById(req.userId!);
+    if (!user) return res.status(404).json({ error: "Not found" });
+    res.json(toPublicUser(user));
+  });
+
+  app.patch("/api/auth/me", requireAuth, async (req, res) => {
+    const body = req.body ?? {};
+    const patch: Parameters<typeof updateUserSettings>[1] = {};
+
+    if ("name" in body) patch.name = toNullableString(body.name);
+    if ("daily_time" in body) {
+      const t = String(body.daily_time).trim();
+      if (!TIME_RE.test(t)) return res.status(400).json({ error: "daily_time must be HH:MM" });
+      patch.daily_time = t;
+    }
+    if ("checkin_time" in body) {
+      const t = String(body.checkin_time).trim();
+      if (!TIME_RE.test(t)) return res.status(400).json({ error: "checkin_time must be HH:MM" });
+      patch.checkin_time = t;
+    }
+    if ("timezone" in body) {
+      const tz = String(body.timezone).trim();
+      if (!tz) return res.status(400).json({ error: "timezone is required" });
+      patch.timezone = tz;
+    }
+    if ("stall_days" in body) {
+      const n = toInt(body.stall_days);
+      if (n === null || n < 1) return res.status(400).json({ error: "stall_days must be >= 1" });
+      patch.stall_days = n;
+    }
+
+    const updated = await updateUserSettings(req.userId!, patch);
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(toPublicUser(updated));
+  });
+
+  app.post("/api/auth/telegram-link", requireAuth, async (req, res) => {
+    const code = generateLinkCode();
+    await setTelegramLinkCode(req.userId!, code);
+    res.json({ code, instructions: `Send /link ${code} to your Telegram bot.` });
+  });
+
+  app.delete("/api/auth/telegram", requireAuth, async (req, res) => {
+    await unlinkTelegram(req.userId!);
+    res.json({ ok: true });
+  });
 
   const api = express.Router();
   api.use(requireAuth);
 
-  // Confirms the supplied password is valid (used by the login form).
-  api.get("/session", (_req, res) => res.json({ ok: true }));
-
   // --- Projects ---
-  api.get("/projects", (_req, res) => res.json(getAllProjects()));
+  api.get("/projects", async (req, res) => {
+    res.json(await getAllProjects(req.userId!));
+  });
 
-  api.get("/projects/:id", (req, res) => {
+  api.get("/projects/:id", async (req, res) => {
     const id = parseId(req);
-    const project = id !== null ? getProject(id) : undefined;
+    const project = id !== null ? await getProject(req.userId!, id) : undefined;
     if (!project) return res.status(404).json({ error: "Not found" });
     res.json(project);
   });
 
-  api.post("/projects", (req, res) => {
+  api.post("/projects", async (req, res) => {
     const result = validateNewProject(req.body ?? {});
     if ("error" in result) return res.status(400).json({ error: result.error });
-    res.status(201).json(addProject(result.value));
+    res.status(201).json(await addProject(req.userId!, result.value));
   });
 
-  api.patch("/projects/:id", (req, res) => {
+  api.patch("/projects/:id", async (req, res) => {
     const id = parseId(req);
-    if (id === null || !getProject(id)) return res.status(404).json({ error: "Not found" });
+    if (id === null || !(await getProject(req.userId!, id))) {
+      return res.status(404).json({ error: "Not found" });
+    }
     const result = validateProjectPatch(req.body ?? {});
     if ("error" in result) return res.status(400).json({ error: result.error });
-    res.json(updateProject(id, result.value));
+    res.json(await updateProject(req.userId!, id, result.value));
   });
 
-  api.delete("/projects/:id", (req, res) => {
+  api.delete("/projects/:id", async (req, res) => {
     const id = parseId(req);
-    if (id === null || !deleteProject(id)) return res.status(404).json({ error: "Not found" });
+    if (id === null || !(await deleteProject(req.userId!, id))) {
+      return res.status(404).json({ error: "Not found" });
+    }
     res.json({ ok: true });
   });
 
   // --- Goals ---
-  api.get("/goals", (_req, res) => res.json(getGoals()));
+  api.get("/goals", async (req, res) => {
+    res.json(await getGoals(req.userId!));
+  });
 
-  api.post("/goals", (req, res) => {
+  api.post("/goals", async (req, res) => {
     const title = toNullableString((req.body ?? {}).title);
     if (!title) return res.status(400).json({ error: "title is required" });
     const detail = toNullableString((req.body ?? {}).detail);
-    res.status(201).json(addGoal(title, detail));
+    res.status(201).json(await addGoal(req.userId!, title, detail));
   });
 
-  api.patch("/goals/:id", (req, res) => {
+  api.patch("/goals/:id", async (req, res) => {
     const id = parseId(req);
-    if (id === null || !getGoal(id)) return res.status(404).json({ error: "Not found" });
+    if (id === null || !(await getGoal(req.userId!, id))) {
+      return res.status(404).json({ error: "Not found" });
+    }
     const body = req.body ?? {};
     const patch: { title?: string; detail?: string | null } = {};
     if ("title" in body) {
@@ -241,12 +336,14 @@ export function createServer(config: Config): express.Express {
       patch.title = title;
     }
     if ("detail" in body) patch.detail = toNullableString(body.detail);
-    res.json(updateGoal(id, patch));
+    res.json(await updateGoal(req.userId!, id, patch));
   });
 
-  api.delete("/goals/:id", (req, res) => {
+  api.delete("/goals/:id", async (req, res) => {
     const id = parseId(req);
-    if (id === null || !deleteGoal(id)) return res.status(404).json({ error: "Not found" });
+    if (id === null || !(await deleteGoal(req.userId!, id))) {
+      return res.status(404).json({ error: "Not found" });
+    }
     res.json({ ok: true });
   });
 
@@ -275,7 +372,7 @@ export function createServer(config: Config): express.Express {
       return res.status(400).json({ error: "no valid messages" });
     }
     try {
-      const result = await chat(config, messages);
+      const result = await chat(config, req.userId!, messages);
       res.json({ reply: result.reply, actions: result.actions });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

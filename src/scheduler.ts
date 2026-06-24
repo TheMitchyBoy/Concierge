@@ -1,56 +1,91 @@
 import cron, { type ScheduledTask } from "node-cron";
-import { dailyTimeToCron, type Config } from "./config.js";
+import {
+  getUsersWithTelegram,
+  markCheckinNudgeSent,
+  markDailyNudgeSent,
+  type User,
+} from "./db.js";
 
-/**
- * Schedule the daily nudge. Fires once a day at config.dailyTime in the
- * configured timezone and calls `send` (which builds + delivers the message).
- */
-export function startScheduler(
-  config: Config,
-  send: () => Promise<void>
-): ScheduledTask {
-  const expression = dailyTimeToCron(config.dailyTime);
+export interface UserNudgeCallbacks {
+  sendDaily: (user: User) => Promise<void>;
+  sendCheckin: (user: User) => Promise<void>;
+}
 
-  const task = cron.schedule(
-    expression,
-    () => {
-      send().catch((err) => {
-        console.error("[scheduler] failed to send daily message:", err);
-      });
-    },
-    { timezone: config.tz }
-  );
+/** Format current local time in a user's timezone as "HH:MM". */
+function localTimeInTz(timezone: string): { time: string; date: string } {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
 
-  console.log(
-    `[scheduler] daily nudge scheduled at ${config.dailyTime} (${config.tz}) [cron: "${expression}"]`
-  );
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const hour = get("hour").padStart(2, "0");
+  const minute = get("minute").padStart(2, "0");
+  const month = get("month");
+  const day = get("day");
+  const year = get("year");
 
-  return task;
+  return {
+    time: `${hour}:${minute}`,
+    date: `${year}-${month}-${day}`,
+  };
+}
+
+function timesMatch(scheduled: string, current: string): boolean {
+  return scheduled === current;
 }
 
 /**
- * Schedule the evening check-in. Fires once a day at config.checkinTime in the
- * configured timezone and calls `send` (which prompts + arms reply capture).
+ * Run every minute and deliver per-user daily nudges and evening check-ins
+ * based on each user's timezone and schedule preferences.
  */
-export function startCheckinScheduler(
-  config: Config,
-  send: () => Promise<void>
-): ScheduledTask {
-  const expression = dailyTimeToCron(config.checkinTime);
+export function startUserScheduler(callbacks: UserNudgeCallbacks): ScheduledTask {
+  const task = cron.schedule("* * * * *", () => {
+    runUserNudges(callbacks).catch((err) => {
+      console.error("[scheduler] per-user nudge tick failed:", err);
+    });
+  });
 
-  const task = cron.schedule(
-    expression,
-    () => {
-      send().catch((err) => {
-        console.error("[scheduler] failed to send check-in:", err);
-      });
-    },
-    { timezone: config.tz }
-  );
-
-  console.log(
-    `[scheduler] evening check-in scheduled at ${config.checkinTime} (${config.tz}) [cron: "${expression}"]`
-  );
-
+  console.log("[scheduler] per-user nudges running every minute (timezone-aware)");
   return task;
+}
+
+async function runUserNudges(callbacks: UserNudgeCallbacks): Promise<void> {
+  const users = await getUsersWithTelegram();
+
+  for (const user of users) {
+    const { time, date } = localTimeInTz(user.timezone);
+
+    if (
+      timesMatch(user.daily_time, time) &&
+      user.last_daily_nudge_date !== date
+    ) {
+      try {
+        await callbacks.sendDaily(user);
+        await markDailyNudgeSent(user.id, date);
+        console.log(`[scheduler] daily nudge sent to user #${user.id}`);
+      } catch (err) {
+        console.error(`[scheduler] daily nudge failed for user #${user.id}:`, err);
+      }
+    }
+
+    if (
+      timesMatch(user.checkin_time, time) &&
+      user.last_checkin_nudge_date !== date
+    ) {
+      try {
+        await callbacks.sendCheckin(user);
+        await markCheckinNudgeSent(user.id, date);
+        console.log(`[scheduler] check-in sent to user #${user.id}`);
+      } catch (err) {
+        console.error(`[scheduler] check-in failed for user #${user.id}:`, err);
+      }
+    }
+  }
 }

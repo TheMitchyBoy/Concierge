@@ -7,6 +7,8 @@ import {
   getAllProjects,
   getGoals,
   getProject,
+  getStalledProjects,
+  getUserById,
   PROJECT_STATUSES,
   PROJECT_TYPES,
   updateProject,
@@ -16,7 +18,6 @@ import {
   type ProjectType,
 } from "./db.js";
 import { allocateDay, score, daysSince } from "./scoring.js";
-import { getStalledProjects } from "./db.js";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -35,7 +36,6 @@ export interface ChatResult {
   actions: ChatAction[];
 }
 
-/** Keep token use bounded: only send the most recent turns. */
 const MAX_HISTORY = 20;
 const MAX_OUTPUT_TOKENS = 2048;
 const MAX_TOOL_ROUNDS = 6;
@@ -252,14 +252,18 @@ interface ToolRunResult {
   actions: ChatAction[];
 }
 
-function runTool(name: string, input: unknown): ToolRunResult {
+async function runTool(
+  userId: number,
+  name: string,
+  input: unknown
+): Promise<ToolRunResult> {
   const body =
     input && typeof input === "object" ? (input as Record<string, unknown>) : {};
 
   if (name === "create_project") {
     const result = validateNewProjectInput(body);
     if ("error" in result) return { output: { ok: false, error: result.error }, actions: [] };
-    const project = addProject(result.value);
+    const project = await addProject(userId, result.value);
     return {
       output: {
         ok: true,
@@ -278,7 +282,9 @@ function runTool(name: string, input: unknown): ToolRunResult {
   if (name === "update_project") {
     const id = toInt(body.id);
     if (id === null) return { output: { ok: false, error: "id must be an integer" }, actions: [] };
-    if (!getProject(id)) return { output: { ok: false, error: `no project #${id}` }, actions: [] };
+    if (!(await getProject(userId, id))) {
+      return { output: { ok: false, error: `no project #${id}` }, actions: [] };
+    }
 
     const result = validateProjectPatchInput(body);
     if ("error" in result) return { output: { ok: false, error: result.error }, actions: [] };
@@ -286,7 +292,7 @@ function runTool(name: string, input: unknown): ToolRunResult {
       return { output: { ok: false, error: "no fields to update" }, actions: [] };
     }
 
-    const updated = updateProject(id, result.value);
+    const updated = await updateProject(userId, id, result.value);
     if (!updated) return { output: { ok: false, error: `failed to update #${id}` }, actions: [] };
     return {
       output: {
@@ -305,7 +311,7 @@ function runTool(name: string, input: unknown): ToolRunResult {
   if (name === "create_goal") {
     const title = toNullableString(body.title);
     if (!title) return { output: { ok: false, error: "title is required" }, actions: [] };
-    const goal = addGoal(title, toNullableString(body.detail));
+    const goal = await addGoal(userId, title, toNullableString(body.detail));
     return {
       output: { ok: true, goal: { id: goal.id, title: goal.title } },
       actions: [{ type: "created_goal", id: goal.id, title: goal.title }],
@@ -315,16 +321,14 @@ function runTool(name: string, input: unknown): ToolRunResult {
   return { output: { ok: false, error: `unknown tool: ${name}` }, actions: [] };
 }
 
-/**
- * Build the system prompt from live data so the agent always reasons over the
- * current goals, projects, scores, and today's allocation.
- */
-export function buildSystemPrompt(config: Config): string {
-  const goals = getGoals();
-  const active = getActiveProjects();
-  const all = getAllProjects();
-  const allocation = allocateDay();
-  const stalled = getStalledProjects(config.stallDays);
+export async function buildSystemPrompt(userId: number): Promise<string> {
+  const user = await getUserById(userId);
+  const stallDays = user?.stall_days ?? 4;
+  const goals = await getGoals(userId);
+  const active = await getActiveProjects(userId);
+  const all = await getAllProjects(userId);
+  const allocation = allocateDay(active);
+  const stalled = await getStalledProjects(userId, stallDays);
 
   const lines: string[] = [];
 
@@ -413,7 +417,7 @@ export function buildSystemPrompt(config: Config): string {
   }
   if (stalled.length > 0) {
     lines.push(
-      `- Stalling (no progress in ${config.stallDays}+ days): ${stalled.map((p) => p.name).join("; ")}`
+      `- Stalling (no progress in ${stallDays}+ days): ${stalled.map((p) => p.name).join("; ")}`
     );
   }
 
@@ -428,11 +432,11 @@ function extractText(content: Anthropic.ContentBlock[]): string {
     .trim();
 }
 
-/**
- * Send a conversation to the model. The agent may call tools to create or
- * update projects and goals, then return a final text reply.
- */
-export async function chat(config: Config, messages: ChatMessage[]): Promise<ChatResult> {
+export async function chat(
+  config: Config,
+  userId: number,
+  messages: ChatMessage[]
+): Promise<ChatResult> {
   if (!isAiConfigured(config)) {
     throw new Error("AI agent is not configured (set ANTHROPIC_API_KEY).");
   }
@@ -446,13 +450,14 @@ export async function chat(config: Config, messages: ChatMessage[]): Promise<Cha
 
   const actions: ChatAction[] = [];
   let rounds = 0;
+  const system = await buildSystemPrompt(userId);
 
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds += 1;
     const response = await client.messages.create({
       model: config.anthropicModel,
       max_tokens: MAX_OUTPUT_TOKENS,
-      system: buildSystemPrompt(config),
+      system,
       tools: TOOLS,
       messages: apiMessages,
     });
@@ -463,7 +468,7 @@ export async function chat(config: Config, messages: ChatMessage[]): Promise<Cha
 
       for (const block of response.content) {
         if (block.type !== "tool_use") continue;
-        const { output, actions: newActions } = runTool(block.name, block.input);
+        const { output, actions: newActions } = await runTool(userId, block.name, block.input);
         actions.push(...newActions);
         toolResults.push({
           type: "tool_result",

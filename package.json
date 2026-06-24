@@ -1,8 +1,8 @@
 {
   "name": "manoverboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "manoverboard.ai — one clear priority for your side hustle. Cron job + SQLite + Telegram bot + dashboard.",
+  "description": "manoverboard.ai — one clear priority for your side hustle. Cron job + Postgres + Telegram bot + dashboard.",
   "type": "module",
   "engines": {
     "node": "20.x"
@@ -16,18 +16,20 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
-    "better-sqlite3": "^11.8.1",
+    "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
     "express": "^4.22.2",
     "node-cron": "^3.0.3",
+    "pg": "^8.16.0",
     "telegraf": "^4.16.3",
     "tsx": "^4.19.2"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
+    "@types/bcryptjs": "^2.4.6",
     "@types/express": "^4.17.25",
     "@types/node": "^22.10.5",
     "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.15.4",
     "typescript": "^5.7.3"
   }
 }
