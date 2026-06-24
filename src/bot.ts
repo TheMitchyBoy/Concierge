@@ -90,15 +90,15 @@ export function createBot(config: Config): OperatorBot {
   bot.start((ctx) =>
     ctx.reply(
       [
-        "\uD83D\uDC4B Operator is online.",
+        "\u2693 manoverboard.ai is on watch.",
         "",
         "Commands:",
-        "/today — today's focus",
-        "/list — active projects + scores",
-        "/add — add a project (guided)",
-        "/next {id} {text} — set next action",
-        "/done {id} — mark next action done",
-        "/progress {id} [note] — log progress (resets the stall clock)",
+        "/today — today's bearing",
+        "/list — active voyages + bearings",
+        "/add — chart a voyage (guided)",
+        "/next {id} {text} — set next leg",
+        "/done {id} — mark next leg complete",
+        "/progress {id} [note] — log progress (resets the adrift clock)",
         "/status {id} {status} — update status",
       ].join("\n")
     )
@@ -219,7 +219,7 @@ export function createBot(config: Config): OperatorBot {
       step: "name",
       data: {},
     });
-    await ctx.reply("Adding a project. What's its name? (or /cancel)");
+    await ctx.reply("Charting a voyage. What's its name? (or /cancel)");
   });
 
   bot.command("cancel", async (ctx) => {
@@ -279,7 +279,7 @@ export function createBot(config: Config): OperatorBot {
     }
     await bot.telegram.sendMessage(
       authorizedChatId,
-      "\uD83C\uDF19 What did you move forward today? Reply with what you got done, or /skip."
+      "\uD83C\uDF19 Anchor watch: what did you move forward today? Reply with what you got done, or /skip."
     );
   };
 
@@ -300,7 +300,7 @@ async function handleAddStep(
     case "name":
       d.name = value;
       session.step = "type";
-      await ctx.reply("Type? Reply 'fast' (client/income) or 'passive'.");
+      await ctx.reply("Track? Reply 'fast' (fair wind / income) or 'passive' (trade wind).");
       return;
 
     case "type": {
@@ -359,7 +359,7 @@ async function handleAddStep(
       }
       d.effort_remaining = n;
       session.step = "next_action";
-      await ctx.reply("What's the single concrete next action?");
+      await ctx.reply("What's the single concrete next leg?");
       return;
     }
 

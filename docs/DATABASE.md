@@ -1,6 +1,6 @@
 # Database
 
-This document explains how Operator stores data today, why it's built this way,
+This document explains how manoverboard.ai stores data today, why it's built this way,
 and the ideas/updates planned (or worth considering) for the future.
 
 ## TL;DR
@@ -8,7 +8,7 @@ and the ideas/updates planned (or worth considering) for the future.
 - Storage is a **single SQLite file** (`better-sqlite3`), not a database server.
 - Its location is controlled by the `DATABASE_PATH` env var.
 - This is deliberate and correct for a one-person tool. **Don't move to Postgres
-  unless Operator becomes multi-user.**
+  unless manoverboard.ai becomes multi-user.**
 
 ## How it works today
 

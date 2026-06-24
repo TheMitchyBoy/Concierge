@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   launchBot();
 
   const shutdown = (signal: string) => {
-    console.log(`\n[operator] received ${signal}, shutting down...`);
+    console.log(`\n[manoverboard] received ${signal}, shutting down...`);
     if (onlineTimer) clearTimeout(onlineTimer);
     try {
       bot.stop(signal);
@@ -100,6 +100,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error("[operator] fatal:", err.message ?? err);
+  console.error("[manoverboard] fatal:", err.message ?? err);
   process.exit(1);
 });

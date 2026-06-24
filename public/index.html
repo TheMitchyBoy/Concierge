@@ -4,31 +4,31 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>Operator — Dashboard</title>
+    <title>manoverboard.ai — Bridge</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
     <style>
       :root {
-        --bg-0: #050508;
-        --bg-1: #0a0a10;
-        --surface: rgba(18, 18, 28, 0.72);
-        --surface-2: rgba(26, 26, 40, 0.85);
-        --surface-hover: rgba(34, 34, 52, 0.9);
-        --border: rgba(255, 255, 255, 0.07);
-        --border-hover: rgba(255, 255, 255, 0.14);
-        --text: #f0f0f5;
-        --text-2: #a8a8b8;
-        --text-3: #6b6b7b;
-        --accent: #6366f1;
-        --accent-2: #8b5cf6;
-        --accent-glow: rgba(99, 102, 241, 0.35);
-        --fast: #f59e0b;
-        --fast-glow: rgba(245, 158, 11, 0.25);
-        --passive: #10b981;
-        --passive-glow: rgba(16, 185, 129, 0.25);
-        --danger: #f43f5e;
-        --danger-glow: rgba(244, 63, 94, 0.2);
+        --bg-0: #020810;
+        --bg-1: #061018;
+        --surface: rgba(8, 20, 32, 0.78);
+        --surface-2: rgba(12, 28, 44, 0.88);
+        --surface-hover: rgba(16, 36, 56, 0.92);
+        --border: rgba(125, 211, 252, 0.08);
+        --border-hover: rgba(125, 211, 252, 0.16);
+        --text: #e8f4fc;
+        --text-2: #94b8cc;
+        --text-3: #5a7a8f;
+        --accent: #0ea5e9;
+        --accent-2: #06b6d4;
+        --accent-glow: rgba(14, 165, 233, 0.35);
+        --fast: #fbbf24;
+        --fast-glow: rgba(251, 191, 36, 0.22);
+        --passive: #2dd4bf;
+        --passive-glow: rgba(45, 212, 191, 0.22);
+        --danger: #fb7185;
+        --danger-glow: rgba(251, 113, 133, 0.2);
         --radius-sm: 8px;
         --radius: 14px;
         --radius-lg: 20px;
@@ -59,10 +59,10 @@
         position: fixed;
         inset: 0;
         background:
-          radial-gradient(ellipse 80% 60% at 10% -10%, rgba(99, 102, 241, 0.18), transparent 50%),
-          radial-gradient(ellipse 60% 50% at 90% 10%, rgba(139, 92, 246, 0.12), transparent 50%),
-          radial-gradient(ellipse 50% 40% at 50% 100%, rgba(16, 185, 129, 0.06), transparent 50%),
-          var(--bg-1);
+          radial-gradient(ellipse 80% 55% at 15% -5%, rgba(14, 165, 233, 0.14), transparent 50%),
+          radial-gradient(ellipse 55% 45% at 85% 15%, rgba(6, 182, 212, 0.1), transparent 50%),
+          radial-gradient(ellipse 60% 50% at 50% 110%, rgba(8, 47, 73, 0.5), transparent 55%),
+          linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 40%, #041220 100%);
         z-index: -1;
         pointer-events: none;
       }
@@ -87,7 +87,7 @@
         border-bottom: 1px solid var(--border);
         position: sticky;
         top: 0;
-        background: rgba(5, 5, 8, 0.75);
+        background: rgba(2, 8, 16, 0.8);
         backdrop-filter: blur(20px) saturate(1.4);
         -webkit-backdrop-filter: blur(20px) saturate(1.4);
         z-index: 100;
@@ -119,11 +119,40 @@
         letter-spacing: -0.02em;
       }
 
+      header h1 .tld {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
       header h1 .sub {
         font-weight: 400;
         color: var(--text-3);
-        margin-left: 6px;
+        margin-left: 8px;
+        font-size: 14px;
+        text-transform: lowercase;
       }
+
+      header h1 .sub::before {
+        content: "·";
+        margin-right: 8px;
+        opacity: 0.4;
+      }
+
+      .tagline {
+        font-size: 13px;
+        color: var(--text-3);
+        margin: 0 0 24px;
+        line-height: 1.5;
+      }
+
+      .brand-name {
+        font-size: 22px;
+        font-weight: 700;
+        margin: 0 0 6px;
+        letter-spacing: -0.03em;
+      }
+
+      .brand-name .tld { color: var(--accent); }
 
       /* ── Layout ── */
       main {
@@ -164,9 +193,9 @@
       .tab:hover { color: var(--text-2); }
       .tab:hover svg { opacity: 0.8; }
       .tab.active {
-        background: rgba(99, 102, 241, 0.15);
+        background: rgba(14, 165, 233, 0.14);
         color: var(--text);
-        box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25);
+        box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.28);
       }
       .tab.active svg { opacity: 1; color: var(--accent); }
 
@@ -289,8 +318,8 @@
       }
 
       input:focus, select:focus, textarea:focus {
-        border-color: rgba(99, 102, 241, 0.5);
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+        border-color: rgba(14, 165, 233, 0.5);
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
         background: rgba(0, 0, 0, 0.4);
       }
 
@@ -411,8 +440,8 @@
         font-size: 13px;
         font-weight: 600;
         color: var(--accent);
-        background: rgba(99, 102, 241, 0.1);
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        background: rgba(14, 165, 233, 0.1);
+        border: 1px solid rgba(14, 165, 233, 0.22);
         padding: 4px 10px;
         border-radius: var(--radius-sm);
       }
@@ -507,8 +536,8 @@
       .auth-card code {
         font-family: "JetBrains Mono", monospace;
         font-size: 12px;
-        background: rgba(99, 102, 241, 0.1);
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        background: rgba(14, 165, 233, 0.1);
+        border: 1px solid rgba(14, 165, 233, 0.2);
         padding: 2px 6px;
         border-radius: 4px;
         color: var(--accent);
@@ -689,8 +718,8 @@
       }
 
       .chip:hover {
-        border-color: rgba(99, 102, 241, 0.4);
-        background: rgba(99, 102, 241, 0.08);
+        border-color: rgba(14, 165, 233, 0.4);
+        background: rgba(14, 165, 233, 0.08);
         transform: translateX(4px);
       }
 
@@ -719,6 +748,22 @@
         background: rgba(255, 255, 255, 0.01);
       }
 
+      /* ── Subtle wave at page bottom ── */
+      .auth-screen::after,
+      #app::after {
+        content: "";
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 120px;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120' preserveAspectRatio='none'%3E%3Cpath fill='%230ea5e9' fill-opacity='0.04' d='M0,64 C240,96 480,32 720,64 C960,96 1200,32 1440,64 L1440,120 L0,120 Z'/%3E%3Cpath fill='%2306b6d4' fill-opacity='0.03' d='M0,80 C360,48 720,112 1080,80 C1260,64 1380,88 1440,96 L1440,120 L0,120 Z'/%3E%3C/svg%3E") bottom center / 100% 120px no-repeat;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      #app { position: relative; z-index: 1; }
+
       /* ── Responsive ── */
       @media (max-width: 640px) {
         header { padding: 14px 18px; }
@@ -733,11 +778,17 @@
   <body>
     <!-- SVG icon sprite -->
     <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
-      <symbol id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      <symbol id="icon-life-ring" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/>
       </symbol>
-      <symbol id="icon-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+      <symbol id="icon-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+      </symbol>
+      <symbol id="icon-anchor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/>
+      </symbol>
+      <symbol id="icon-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>
       </symbol>
       <symbol id="icon-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -752,21 +803,22 @@
         <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
       </symbol>
       <symbol id="icon-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/>
+        <path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><circle cx="12" cy="5" r="3"/>
       </symbol>
-      <symbol id="icon-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+      <symbol id="icon-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
       </symbol>
     </svg>
 
     <div id="login" class="hidden">
       <div class="auth-screen">
         <div class="auth-card">
-          <div class="brand-icon"><svg><use href="#icon-sun"/></svg></div>
-          <h1>Operator</h1>
-          <p>Enter your dashboard password to continue.</p>
+          <div class="brand-icon"><svg><use href="#icon-life-ring"/></svg></div>
+          <h1 class="brand-name">manoverboard<span class="tld">.ai</span></h1>
+          <p class="tagline">Your lifeline when the side hustle pulls you under.</p>
+          <p>Enter your bridge password to come aboard.</p>
           <div class="field"><input id="login-pw" type="password" placeholder="Password" autocomplete="current-password" /></div>
-          <button class="primary" onclick="doLogin()">Unlock dashboard</button>
+          <button class="primary" onclick="doLogin()">Come aboard</button>
           <p id="login-err" style="color:var(--danger);min-height:20px;margin-top:12px;font-size:13px"></p>
         </div>
       </div>
@@ -775,9 +827,9 @@
     <div id="notconfig" class="hidden">
       <div class="auth-screen">
         <div class="auth-card" style="text-align:left">
-          <div class="brand-icon" style="margin:0 auto 20px"><svg><use href="#icon-sun"/></svg></div>
-          <h1 style="text-align:center">Operator</h1>
-          <p style="text-align:center">The dashboard is running but <strong style="color:var(--text)">locked</strong> — no password is set yet.</p>
+          <div class="brand-icon" style="margin:0 auto 20px"><svg><use href="#icon-life-ring"/></svg></div>
+          <h1 class="brand-name" style="text-align:center">manoverboard<span class="tld">.ai</span></h1>
+          <p style="text-align:center">The bridge is running but <strong style="color:var(--text)">locked</strong> — no password is set yet.</p>
           <p class="muted">Set a <code>DASHBOARD_PASSWORD</code> environment variable and redeploy:</p>
           <ol class="muted">
             <li>Railway → your service → <strong>Variables</strong></li>
@@ -793,23 +845,23 @@
     <div id="app" class="hidden">
       <header>
         <div class="brand">
-          <div class="brand-icon"><svg><use href="#icon-sun"/></svg></div>
-          <h1>Operator<span class="sub">dashboard</span></h1>
+          <div class="brand-icon"><svg><use href="#icon-life-ring"/></svg></div>
+          <h1>manoverboard<span class="tld">.ai</span><span class="sub">bridge</span></h1>
         </div>
         <button class="ghost" onclick="logout()">
           <svg><use href="#icon-logout"/></svg>
-          Log out
+          Abandon ship
         </button>
       </header>
       <main>
         <div class="tabs">
           <button id="tabbtn-manage" class="tab active" onclick="switchTab('manage')">
-            <svg><use href="#icon-grid"/></svg>
-            Manage
+            <svg><use href="#icon-map"/></svg>
+            Chart room
           </button>
           <button id="tabbtn-assistant" class="tab" onclick="switchTab('assistant')">
-            <svg><use href="#icon-chat"/></svg>
-            Assistant
+            <svg><use href="#icon-anchor"/></svg>
+            First mate
           </button>
         </div>
 
@@ -817,13 +869,13 @@
           <div class="section-block">
             <div class="section-head">
               <h2>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-target"/></svg>
-                Goals
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-star"/></svg>
+                North stars
                 <span id="goals-count" class="count">0</span>
               </h2>
               <button onclick="addGoal()">
                 <svg><use href="#icon-plus"/></svg>
-                Add goal
+                Set bearing
               </button>
             </div>
             <div id="goals"></div>
@@ -832,12 +884,13 @@
           <div class="section-block">
             <div class="section-head">
               <h2>
-                Projects
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-compass"/></svg>
+                Voyages
                 <span id="projects-count" class="count">0</span>
               </h2>
               <button class="primary" onclick="addProject()">
                 <svg><use href="#icon-plus"/></svg>
-                Add project
+                Chart voyage
               </button>
             </div>
             <div id="projects" class="grid"></div>
@@ -848,7 +901,7 @@
           <div class="chat-wrap">
             <div id="chat-log" class="chat-log"></div>
             <div class="chat-input-bar">
-              <textarea id="chat-text" placeholder="Ask your Operator agent… (Enter to send, Shift+Enter for newline)"></textarea>
+              <textarea id="chat-text" placeholder="Ask your First Mate anything… (Enter to send, Shift+Enter for newline)"></textarea>
               <button class="primary" id="chat-send" onclick="sendChat()">
                 <svg><use href="#icon-send"/></svg>
                 Send
@@ -862,7 +915,7 @@
     <div id="toast" class="toast"></div>
 
     <script>
-      const PW_KEY = "operator_dashboard_pw";
+      const PW_KEY = "manoverboard_dashboard_pw";
       let pw = localStorage.getItem(PW_KEY) || "";
 
       const $ = (id) => document.getElementById(id);
@@ -895,6 +948,8 @@
       const STATUSES = ["idea", "active", "blocked", "shipped", "paid", "archived"];
       const TYPES = ["fast", "passive"];
 
+      const TYPE_LABELS = { fast: "fair wind", passive: "trade wind" };
+
       function scoreOf(p) {
         const speed = 6 - Number(p.time_to_cash);
         const s = (Number(p.revenue_potential) * Number(p.confidence) * speed) / Math.max(Number(p.effort_remaining), 1);
@@ -918,16 +973,16 @@
           <div class="card-head">
             <div class="card-meta">
               <span class="pill">${p.id ? "#" + p.id : "new"}</span>
-              <span class="pill type-${esc(type)}">${type}</span>
+              <span class="pill type-${esc(type)}">${TYPE_LABELS[type] || type}</span>
             </div>
-            <span class="score" title="priority score">${p.id || p.name ? scoreOf(p) : "—"}</span>
+            <span class="score" title="priority bearing">${p.id || p.name ? scoreOf(p) : "—"}</span>
           </div>
-          <div class="field"><label>Name</label><input data-k="name" value="${esc(p.name)}" placeholder="Project name" /></div>
+          <div class="field"><label>Voyage name</label><input data-k="name" value="${esc(p.name)}" placeholder="What are you shipping?" /></div>
           <div class="row">
-            <div class="field"><label>Type</label><select data-k="type" onchange="updateTypePill(this)">${selectOpts(TYPES, type)}</select></div>
+            <div class="field"><label>Track</label><select data-k="type" onchange="updateTypePill(this)">${selectOpts(TYPES, type)}</select></div>
             <div class="field"><label>Status</label><select data-k="status" onchange="updateStatusPill(this)">${selectOpts(STATUSES, status)}</select></div>
           </div>
-          <div class="field"><label>Client</label><input data-k="client" value="${esc(p.client)}" placeholder="Client name (optional)" /></div>
+          <div class="field"><label>Client / port</label><input data-k="client" value="${esc(p.client)}" placeholder="Who's paying the fare?" /></div>
           <div class="row-3">
             <div class="field"><label>Revenue 1–5</label><input data-k="revenue_potential" type="number" min="1" max="5" value="${esc(p.revenue_potential ?? 3)}" /></div>
             <div class="field"><label>Confidence 1–5</label><input data-k="confidence" type="number" min="1" max="5" value="${esc(p.confidence ?? 3)}" /></div>
@@ -937,8 +992,8 @@
             <div class="field"><label>Effort (hrs left)</label><input data-k="effort_remaining" type="number" min="0" value="${esc(p.effort_remaining ?? 8)}" /></div>
             <div class="field"><label>Deadline</label><input data-k="deadline" type="date" value="${esc(p.deadline)}" /></div>
           </div>
-          <div class="field"><label>Next action</label><textarea data-k="next_action" placeholder="What's the very next step?">${esc(p.next_action)}</textarea></div>
-          <div class="field"><label>Notes</label><textarea data-k="notes" placeholder="Additional context…">${esc(p.notes)}</textarea></div>
+          <div class="field"><label>Next leg</label><textarea data-k="next_action" placeholder="The single next move to make headway">${esc(p.next_action)}</textarea></div>
+          <div class="field"><label>Ship's log</label><textarea data-k="notes" placeholder="Context, blockers, harbor notes…">${esc(p.notes)}</textarea></div>
           <div class="card-actions">
             <button class="primary" onclick="saveProject(this)">${isNew ? "Create" : "Save"}</button>
             <span class="spacer"></span>
@@ -967,7 +1022,7 @@
         const list = await api("GET", "/projects");
         $("projects-count").textContent = list.length;
         if (list.length === 0) {
-          $("projects").innerHTML = '<div class="empty-state">No projects yet — add one to get started.</div>';
+          $("projects").innerHTML = '<div class="empty-state">No voyages charted yet — plot your first course.</div>';
         } else {
           $("projects").innerHTML = list.map(projectCard).join("");
         }
@@ -1002,7 +1057,7 @@
 
       async function deleteProject(btn) {
         const card = btn.closest(".card");
-        if (!confirm("Delete project #" + card.dataset.id + "?")) return;
+        if (!confirm("Scuttle voyage #" + card.dataset.id + "?")) return;
         try {
           await api("DELETE", "/projects/" + card.dataset.id);
           toast("Deleted");
@@ -1010,7 +1065,7 @@
           const remaining = $("projects").querySelectorAll(".card").length;
           $("projects-count").textContent = remaining;
           if (remaining === 0) {
-            $("projects").innerHTML = '<div class="empty-state">No projects yet — add one to get started.</div>';
+            $("projects").innerHTML = '<div class="empty-state">No voyages charted yet — plot your first course.</div>';
           }
         } catch (e) {
           toast(e.message, true);
@@ -1021,8 +1076,8 @@
         const isNew = !g.id;
         return `
         <div class="goal" data-id="${g.id || ""}">
-          <div class="field"><label>Goal${g.id ? " #" + g.id : ""}</label><input data-k="title" value="${esc(g.title)}" placeholder="What are you aiming for?" /></div>
-          <div class="field"><label>Detail</label><textarea data-k="detail" placeholder="Why does this matter?">${esc(g.detail)}</textarea></div>
+          <div class="field"><label>North star${g.id ? " #" + g.id : ""}</label><input data-k="title" value="${esc(g.title)}" placeholder="Where are you sailing?" /></div>
+          <div class="field"><label>Why it matters</label><textarea data-k="detail" placeholder="What does reaching this port change?">${esc(g.detail)}</textarea></div>
           <div class="card-actions">
             <button class="primary" onclick="saveGoal(this)">${isNew ? "Create" : "Save"}</button>
             <span class="spacer"></span>
@@ -1037,7 +1092,7 @@
         const list = await api("GET", "/goals");
         $("goals-count").textContent = list.length;
         if (list.length === 0) {
-          $("goals").innerHTML = '<div class="empty-state">No goals yet — define what you\'re working toward.</div>';
+          $("goals").innerHTML = '<div class="empty-state">No north stars set — decide where you\'re sailing.</div>';
         } else {
           $("goals").innerHTML = list.map(goalCard).join("");
         }
@@ -1067,7 +1122,7 @@
 
       async function deleteGoal(btn) {
         const el = btn.closest(".goal");
-        if (!confirm("Delete this goal?")) return;
+        if (!confirm("Strike this north star from the chart?")) return;
         try {
           await api("DELETE", "/goals/" + el.dataset.id);
           toast("Deleted");
@@ -1075,7 +1130,7 @@
           const remaining = $("goals").querySelectorAll(".goal").length;
           $("goals-count").textContent = remaining;
           if (remaining === 0) {
-            $("goals").innerHTML = '<div class="empty-state">No goals yet — define what you\'re working toward.</div>';
+            $("goals").innerHTML = '<div class="empty-state">No north stars set — decide where you\'re sailing.</div>';
           }
         } catch (e) {
           toast(e.message, true);
@@ -1155,7 +1210,7 @@
             avatar.style.fontSize = "10px";
             avatar.style.fontWeight = "600";
           } else {
-            avatar.innerHTML = '<svg width="16" height="16"><use href="#icon-bot"/></svg>';
+            avatar.innerHTML = '<svg width="16" height="16"><use href="#icon-anchor"/></svg>';
           }
           row.appendChild(avatar);
         }
@@ -1176,18 +1231,18 @@
           const status = await api("GET", "/chat/status");
           if (!status.enabled) {
             renderChatEmpty(
-              "The AI agent isn't configured yet. Set ANTHROPIC_API_KEY in your environment (Railway → Variables) and redeploy to chat with your Operator agent."
+              "The First Mate isn't aboard yet. Set ANTHROPIC_API_KEY in your environment (Railway → Variables) and redeploy to get navigational help."
             );
             $("chat-text").disabled = true;
             $("chat-send").disabled = true;
             return;
           }
           renderChatEmpty(
-            "Ask your Operator agent anything about your goals and projects — it sees them live.",
+            "Your First Mate sees your north stars and voyages live — ask for a bearing when you're adrift.",
             [
               "What should I focus on tonight? I have about an hour.",
-              "Rank my fast projects and sharpen each next action.",
-              "Which projects are stalling and how do I unblock them?",
+              "Rank my fair-wind voyages and sharpen each next leg.",
+              "Which voyages are adrift and how do I get them moving?",
             ]
           );
         } catch (e) {
@@ -1227,7 +1282,7 @@
         chatHistory.push({ role: "user", content: text });
 
         $("chat-send").disabled = true;
-        const thinking = appendMsg("system", "Operator is thinking…");
+        const thinking = appendMsg("system", "First Mate is plotting course…");
         try {
           const data = await api("POST", "/chat", { messages: chatHistory });
           thinking.remove();

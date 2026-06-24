@@ -1,6 +1,7 @@
-# Operator
+# manoverboard.ai
 
-A lightweight personal-assistant + business-analyst for a dev side-hustle.
+Your lifeline when the side-hustle pulls you under.
+A lightweight personal navigator + business analyst for a dev side-hustle —
 It is **not** a chat app, Kanban board, or SaaS — it's a **cron job + a SQLite
 database + a Telegram bot**. It runs on a schedule, looks at your projects, and
 pushes you **one clear thing to do each day** so you make money without burning
@@ -147,7 +148,7 @@ jobs:
 
 ## Deploy to Railway (recommended host)
 
-Operator is a long-running worker (no HTTP server, no inbound port needed — the
+manoverboard.ai is a long-running worker (no HTTP server, no inbound port needed — the
 Telegram bot uses long polling). [Railway](https://railway.com) runs this kind
 of process well. The repo ships a `railway.json` so the service builds with
 Nixpacks and runs `npm start` with an automatic restart-on-failure policy.
@@ -323,7 +324,7 @@ Passive projects: quietly letting them rot is how they die.
 
 ## Progress-based accountability
 
-Operator tracks momentum, not just priority — it works for any project type
+manoverboard.ai tracks momentum, not just priority — it works for any voyage type
 (client sites, sales, passive products), not just code.
 
 - **Progress stamping.** Every project has a `last_progress_at` timestamp. It's
@@ -332,7 +333,7 @@ Operator tracks momentum, not just priority — it works for any project type
   optionally logs a note).
 - **Stall detection.** An `active` project is *stalling* if it has no recorded
   progress, or its last progress is older than `STALL_DAYS` (default 4). A
-  `⚠️ Stalling` section is appended to the daily message listing each one as
+  `⚠️ Adrift` section is appended to the daily message listing each one as
   `name — N days since progress`. If any stalled project is `passive`, a line
   reminds you that quietly letting them rot is how they die.
 - **Evening check-in.** At `CHECKIN_TIME` (default 20:00, same timezone) the bot

@@ -1,8 +1,8 @@
 {
-  "name": "operator",
+  "name": "manoverboard",
   "version": "0.1.0",
   "private": true,
-  "description": "Operator — a personal-assistant + business-analyst for a dev side-hustle. Cron job + SQLite + Telegram bot.",
+  "description": "manoverboard.ai — your lifeline when the side-hustle pulls you under. Cron job + SQLite + Telegram bot + bridge dashboard.",
   "type": "module",
   "engines": {
     "node": "20.x"
