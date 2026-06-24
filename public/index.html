@@ -748,7 +748,7 @@
         background: rgba(255, 255, 255, 0.01);
       }
 
-      /* ── Animated ocean waves ── */
+      /* ── Animated ocean waves (swell in place) ── */
       .ocean-waves {
         position: fixed;
         bottom: 0;
@@ -762,82 +762,41 @@
         -webkit-mask-image: linear-gradient(to top, black 55%, transparent 100%);
       }
 
-      .wave-layer {
+      .wave-svg {
         position: absolute;
         left: 0;
-        width: 200%;
-        height: 100%;
-        display: flex;
-        will-change: transform;
-      }
-
-      .wave-layer svg {
-        flex: 0 0 50%;
-        width: 50%;
-        height: 100%;
+        width: 100%;
         display: block;
       }
 
-      .wave-layer-1 {
+      .wave-svg-1 {
         bottom: 0;
         height: 110px;
-        animation: wave-drift-1 13s linear infinite;
         opacity: 0.5;
       }
 
-      .wave-layer-2 {
+      .wave-svg-2 {
         bottom: -4px;
         height: 130px;
-        animation: wave-drift-2 9s linear infinite reverse;
         opacity: 0.7;
       }
 
-      .wave-layer-3 {
+      .wave-svg-3 {
         bottom: -8px;
         height: 150px;
-        animation: wave-drift-3 6s linear infinite;
         opacity: 0.9;
       }
 
-      .wave-layer-foam {
+      .wave-svg-foam {
         bottom: 0;
         height: 150px;
-        animation: wave-drift-foam 6s linear infinite;
         opacity: 0.5;
         mix-blend-mode: screen;
       }
 
-      @keyframes wave-drift-1 {
-        from { transform: translateX(0) translateY(0); }
-        50% { transform: translateX(-25%) translateY(8px); }
-        to { transform: translateX(-50%) translateY(0); }
-      }
-
-      @keyframes wave-drift-2 {
-        from { transform: translateX(-50%) translateY(0); }
-        50% { transform: translateX(-25%) translateY(-10px); }
-        to { transform: translateX(0) translateY(0); }
-      }
-
-      @keyframes wave-drift-3 {
-        from { transform: translateX(0) translateY(0); }
-        50% { transform: translateX(-25%) translateY(7px); }
-        to { transform: translateX(-50%) translateY(0); }
-      }
-
-      @keyframes wave-drift-foam {
-        from { transform: translateX(0) translateY(0); }
-        50% { transform: translateX(-25%) translateY(7px); }
-        to { transform: translateX(-50%) translateY(0); }
-      }
-
       @media (prefers-reduced-motion: reduce) {
-        .wave-layer-1,
-        .wave-layer-2,
-        .wave-layer-3,
-        .wave-layer-foam {
-          animation: none;
-          transform: translateX(-25%);
+        .wave-svg animate {
+          display: none;
         }
       }
 
@@ -890,38 +849,38 @@
     </svg>
 
     <div class="ocean-waves" aria-hidden="true">
-      <div class="wave-layer wave-layer-1">
-        <svg viewBox="0 0 1200 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#1e3a5f" d="M0,52 C70,30 120,68 200,40 C270,16 330,60 410,38 C480,18 540,64 620,44 C690,26 760,66 840,42 C910,22 970,62 1050,40 C1120,20 1170,56 1200,46 L1200,110 L0,110 Z"/>
-        </svg>
-        <svg viewBox="0 0 1200 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#1e3a5f" d="M0,52 C70,30 120,68 200,40 C270,16 330,60 410,38 C480,18 540,64 620,44 C690,26 760,66 840,42 C910,22 970,62 1050,40 C1120,20 1170,56 1200,46 L1200,110 L0,110 Z"/>
-        </svg>
-      </div>
-      <div class="wave-layer wave-layer-2">
-        <svg viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#13294a" d="M0,60 C60,84 130,28 210,58 C280,84 340,30 420,56 C500,82 560,26 640,54 C720,82 780,32 860,58 C940,84 1000,30 1080,56 C1140,76 1180,44 1200,60 L1200,130 L0,130 Z"/>
-        </svg>
-        <svg viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#13294a" d="M0,60 C60,84 130,28 210,58 C280,84 340,30 420,56 C500,82 560,26 640,54 C720,82 780,32 860,58 C940,84 1000,30 1080,56 C1140,76 1180,44 1200,60 L1200,130 L0,130 Z"/>
-        </svg>
-      </div>
-      <div class="wave-layer wave-layer-3">
-        <svg viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#0a182c" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72 L1200,150 L0,150 Z"/>
-        </svg>
-        <svg viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#0a182c" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72 L1200,150 L0,150 Z"/>
-        </svg>
-      </div>
-      <div class="wave-layer wave-layer-foam">
-        <svg viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="none" stroke="#cfe8ff" stroke-width="2.5" stroke-linecap="round" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72"/>
-        </svg>
-        <svg viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="none" stroke="#cfe8ff" stroke-width="2.5" stroke-linecap="round" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72"/>
-        </svg>
-      </div>
+      <svg class="wave-svg wave-svg-1" viewBox="0 0 1200 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#1e3a5f" d="M0,52 C70,30 120,68 200,40 C270,16 330,60 410,38 C480,18 540,64 620,44 C690,26 760,66 840,42 C910,22 970,62 1050,40 C1120,20 1170,56 1200,46 L1200,110 L0,110 Z">
+          <animate attributeName="d" dur="6s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"
+            values="M0,52 C70,30 120,68 200,40 C270,16 330,60 410,38 C480,18 540,64 620,44 C690,26 760,66 840,42 C910,22 970,62 1050,40 C1120,20 1170,56 1200,46 L1200,110 L0,110 Z;
+                    M0,52 C70,74 120,36 200,64 C270,88 330,44 410,66 C480,86 540,40 620,60 C690,78 760,38 840,62 C910,82 970,42 1050,64 C1120,84 1170,48 1200,58 L1200,110 L0,110 Z;
+                    M0,52 C70,30 120,68 200,40 C270,16 330,60 410,38 C480,18 540,64 620,44 C690,26 760,66 840,42 C910,22 970,62 1050,40 C1120,20 1170,56 1200,46 L1200,110 L0,110 Z"/>
+        </path>
+      </svg>
+      <svg class="wave-svg wave-svg-2" viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#13294a" d="M0,60 C60,84 130,28 210,58 C280,84 340,30 420,56 C500,82 560,26 640,54 C720,82 780,32 860,58 C940,84 1000,30 1080,56 C1140,76 1180,44 1200,60 L1200,130 L0,130 Z">
+          <animate attributeName="d" dur="8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+            values="M0,60 C60,84 130,28 210,58 C280,84 340,30 420,56 C500,82 560,26 640,54 C720,82 780,32 860,58 C940,84 1000,30 1080,56 C1140,76 1180,44 1200,60 L1200,130 L0,130 Z;
+                    M0,60 C60,36 130,92 210,62 C280,36 340,90 420,64 C500,38 560,94 640,66 C720,38 780,88 860,62 C940,36 1000,90 1080,64 C1140,44 1180,76 1200,60 L1200,130 L0,130 Z;
+                    M0,60 C60,84 130,28 210,58 C280,84 340,30 420,56 C500,82 560,26 640,54 C720,82 780,32 860,58 C940,84 1000,30 1080,56 C1140,76 1180,44 1200,60 L1200,130 L0,130 Z"/>
+        </path>
+      </svg>
+      <svg class="wave-svg wave-svg-3" viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#0a182c" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72 L1200,150 L0,150 Z">
+          <animate attributeName="d" dur="5s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
+            values="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72 L1200,150 L0,150 Z;
+                    M0,74 C50,104 110,52 180,80 C240,104 300,50 370,76 C440,102 500,48 570,78 C640,106 700,52 770,78 C840,104 900,50 970,76 C1040,102 1100,54 1170,78 C1185,84 1195,76 1200,76 L1200,150 L0,150 Z;
+                    M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72 L1200,150 L0,150 Z"/>
+        </path>
+      </svg>
+      <svg class="wave-svg wave-svg-foam" viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill="none" stroke="#cfe8ff" stroke-width="2.5" stroke-linecap="round" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72">
+          <animate attributeName="d" dur="5s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
+            values="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72;
+                    M0,74 C50,104 110,52 180,80 C240,104 300,50 370,76 C440,102 500,48 570,78 C640,106 700,52 770,78 C840,104 900,50 970,76 C1040,102 1100,54 1170,78 C1185,84 1195,76 1200,76;
+                    M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72"/>
+        </path>
+      </svg>
     </div>
 
     <div id="login" class="hidden">
