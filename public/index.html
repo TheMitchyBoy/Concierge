@@ -754,12 +754,12 @@
         bottom: 0;
         left: 0;
         width: 100%;
-        height: 140px;
+        height: 180px;
         pointer-events: none;
         z-index: 0;
         overflow: hidden;
-        mask-image: linear-gradient(to top, black 40%, transparent 100%);
-        -webkit-mask-image: linear-gradient(to top, black 40%, transparent 100%);
+        mask-image: linear-gradient(to top, black 55%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to top, black 55%, transparent 100%);
       }
 
       .wave-layer {
@@ -780,47 +780,62 @@
 
       .wave-layer-1 {
         bottom: 0;
-        height: 90px;
-        animation: wave-drift-1 24s linear infinite;
-        opacity: 0.18;
+        height: 110px;
+        animation: wave-drift-1 13s linear infinite;
+        opacity: 0.5;
       }
 
       .wave-layer-2 {
         bottom: -4px;
-        height: 110px;
-        animation: wave-drift-2 17s linear infinite reverse;
-        opacity: 0.28;
+        height: 130px;
+        animation: wave-drift-2 9s linear infinite reverse;
+        opacity: 0.7;
       }
 
       .wave-layer-3 {
         bottom: -8px;
-        height: 130px;
-        animation: wave-drift-3 12s linear infinite;
-        opacity: 0.4;
+        height: 150px;
+        animation: wave-drift-3 6s linear infinite;
+        opacity: 0.9;
+      }
+
+      .wave-layer-foam {
+        bottom: 0;
+        height: 150px;
+        animation: wave-drift-foam 6s linear infinite;
+        opacity: 0.5;
+        mix-blend-mode: screen;
       }
 
       @keyframes wave-drift-1 {
         from { transform: translateX(0) translateY(0); }
-        50% { transform: translateX(-25%) translateY(3px); }
+        50% { transform: translateX(-25%) translateY(8px); }
         to { transform: translateX(-50%) translateY(0); }
       }
 
       @keyframes wave-drift-2 {
         from { transform: translateX(-50%) translateY(0); }
-        50% { transform: translateX(-25%) translateY(-4px); }
+        50% { transform: translateX(-25%) translateY(-10px); }
         to { transform: translateX(0) translateY(0); }
       }
 
       @keyframes wave-drift-3 {
         from { transform: translateX(0) translateY(0); }
-        50% { transform: translateX(-25%) translateY(2px); }
+        50% { transform: translateX(-25%) translateY(7px); }
+        to { transform: translateX(-50%) translateY(0); }
+      }
+
+      @keyframes wave-drift-foam {
+        from { transform: translateX(0) translateY(0); }
+        50% { transform: translateX(-25%) translateY(7px); }
         to { transform: translateX(-50%) translateY(0); }
       }
 
       @media (prefers-reduced-motion: reduce) {
         .wave-layer-1,
         .wave-layer-2,
-        .wave-layer-3 {
+        .wave-layer-3,
+        .wave-layer-foam {
           animation: none;
           transform: translateX(-25%);
         }
@@ -876,27 +891,35 @@
 
     <div class="ocean-waves" aria-hidden="true">
       <div class="wave-layer wave-layer-1">
-        <svg viewBox="0 0 1200 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#0ea5e9" d="M0,45 C150,70 300,20 450,45 C600,70 750,20 900,45 C1050,70 1200,20 1200,45 L1200,90 L0,90 Z"/>
+        <svg viewBox="0 0 1200 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#1e3a5f" d="M0,52 C70,30 120,68 200,40 C270,16 330,60 410,38 C480,18 540,64 620,44 C690,26 760,66 840,42 C910,22 970,62 1050,40 C1120,20 1170,56 1200,46 L1200,110 L0,110 Z"/>
         </svg>
-        <svg viewBox="0 0 1200 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#0ea5e9" d="M0,45 C150,70 300,20 450,45 C600,70 750,20 900,45 C1050,70 1200,20 1200,45 L1200,90 L0,90 Z"/>
+        <svg viewBox="0 0 1200 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#1e3a5f" d="M0,52 C70,30 120,68 200,40 C270,16 330,60 410,38 C480,18 540,64 620,44 C690,26 760,66 840,42 C910,22 970,62 1050,40 C1120,20 1170,56 1200,46 L1200,110 L0,110 Z"/>
         </svg>
       </div>
       <div class="wave-layer wave-layer-2">
-        <svg viewBox="0 0 1200 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#06b6d4" d="M0,55 C200,25 400,85 600,55 C800,25 1000,85 1200,55 L1200,110 L0,110 Z"/>
+        <svg viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#13294a" d="M0,60 C60,84 130,28 210,58 C280,84 340,30 420,56 C500,82 560,26 640,54 C720,82 780,32 860,58 C940,84 1000,30 1080,56 C1140,76 1180,44 1200,60 L1200,130 L0,130 Z"/>
         </svg>
-        <svg viewBox="0 0 1200 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#06b6d4" d="M0,55 C200,25 400,85 600,55 C800,25 1000,85 1200,55 L1200,110 L0,110 Z"/>
+        <svg viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#13294a" d="M0,60 C60,84 130,28 210,58 C280,84 340,30 420,56 C500,82 560,26 640,54 C720,82 780,32 860,58 C940,84 1000,30 1080,56 C1140,76 1180,44 1200,60 L1200,130 L0,130 Z"/>
         </svg>
       </div>
       <div class="wave-layer wave-layer-3">
-        <svg viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#0284c7" d="M0,65 C180,95 360,35 540,65 C720,95 900,35 1080,65 C1140,78 1200,55 1200,65 L1200,130 L0,130 Z"/>
+        <svg viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#0a182c" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72 L1200,150 L0,150 Z"/>
         </svg>
-        <svg viewBox="0 0 1200 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#0284c7" d="M0,65 C180,95 360,35 540,65 C720,95 900,35 1080,65 C1140,78 1200,55 1200,65 L1200,130 L0,130 Z"/>
+        <svg viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#0a182c" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72 L1200,150 L0,150 Z"/>
+        </svg>
+      </div>
+      <div class="wave-layer wave-layer-foam">
+        <svg viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="none" stroke="#cfe8ff" stroke-width="2.5" stroke-linecap="round" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72"/>
+        </svg>
+        <svg viewBox="0 0 1200 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill="none" stroke="#cfe8ff" stroke-width="2.5" stroke-linecap="round" d="M0,74 C50,44 110,96 180,68 C240,44 300,98 370,72 C440,46 500,100 570,70 C640,42 700,96 770,70 C840,44 900,98 970,72 C1040,46 1100,94 1170,70 C1185,64 1195,72 1200,72"/>
         </svg>
       </div>
     </div>
