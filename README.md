@@ -42,6 +42,7 @@ score = (revenue_potential * confidence * speed) / max(effort_remaining, 1)
 - [`node-cron`](https://github.com/node-cron/node-cron) — scheduler
 - [`telegraf`](https://telegraf.js.org/) — Telegram bot
 - [`express`](https://expressjs.com/) — optional web dashboard API (vanilla HTML/JS frontend, no build step)
+- [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) — optional AI chat agent (`claude-sonnet-4-6`)
 - `dotenv` — config
 
 ## Setup
@@ -174,7 +175,8 @@ at it, or you'll lose your projects on each deploy.
    TZ=America/Chicago                    # MUST match the times' locale
    DATABASE_PATH=/data/operator.db       # <-- points the DB at the volume
    DASHBOARD_PASSWORD=choose-a-strong-one # enables the web dashboard (see below)
-   # ANTHROPIC_API_KEY=                  # Phase 2 only, leave unset
+   ANTHROPIC_API_KEY=sk-ant-...          # enables the Assistant AI agent (optional)
+   # ANTHROPIC_MODEL=claude-sonnet-4-6   # optional model override
    ```
 
    `DATABASE_PATH` must live under the volume mount path (`/data`). The DB and
@@ -253,7 +255,27 @@ database, so edits show up immediately in `/today`, `/list`, etc.
 - **No build step.** The frontend is a single static `public/index.html`
   (vanilla HTML/CSS/JS). The backend is a small Express API in `src/server.ts`.
 - **What you can do:** view all projects with their live priority score; create,
-  edit every field of, and delete projects; and create/edit/delete goals.
+  edit every field of, and delete projects; create/edit/delete goals; and — on
+  the **Assistant** tab — chat with an AI agent that has your goals, projects,
+  scores, and today's allocation as live context.
+
+### AI chat agent (Assistant tab)
+
+A dedicated agent that acts as your business analyst. It's built from
+`@anthropic-ai/sdk` and, on every message, gets a system prompt assembled **live**
+from your current goals, active projects (with scores, deadlines, stall info),
+and the computed daily allocation — so its advice always reflects the real
+state.
+
+- **Opt-in.** The agent is enabled only when `ANTHROPIC_API_KEY` is set;
+  otherwise the Assistant tab shows a "not configured" notice. Model defaults to
+  `claude-sonnet-4-6` and is overridable via `ANTHROPIC_MODEL`.
+- **Read-only context.** The agent reasons over your data and gives concrete,
+  time-aware advice (it doesn't edit projects itself — you do that on the Manage
+  tab). Ask things like "what should I focus on tonight?", "rank my fast
+  projects and sharpen each next action", or "which projects are stalling?".
+- Conversation history is kept in the browser session (not persisted
+  server-side) and the most recent turns are sent with each request.
 
 Run locally:
 
@@ -270,6 +292,8 @@ API (all require the `x-dashboard-password` header):
 | `PATCH /api/projects/:id` · `DELETE /api/projects/:id` | Edit / delete a project |
 | `GET /api/goals` · `POST /api/goals` | List / create goals |
 | `PATCH /api/goals/:id` · `DELETE /api/goals/:id` | Edit / delete a goal |
+| `GET /api/chat/status` | Whether the AI agent is enabled + its model |
+| `POST /api/chat` | Send `{ messages: [{role, content}] }`, get `{ reply }` |
 
 ## Daily message format
 
@@ -326,7 +350,8 @@ operator/
     messages.ts    # daily message + list formatting (shared by bot & scheduler)
     bot.ts         # telegraf commands (incl. /progress, /skip, check-in reply)
     scheduler.ts   # node-cron -> daily nudge + evening check-in
-    server.ts      # express API for the web dashboard (auth + projects/goals CRUD)
+    server.ts      # express API for the web dashboard (auth + projects/goals CRUD + chat)
+    ai.ts          # AI chat agent: live-context system prompt + Anthropic call
     config.ts      # load + validate env
     index.ts       # boot: init db, start bot, schedulers, web server
     daily.ts       # one-shot allocation + send + exit (npm run daily)
@@ -387,8 +412,11 @@ Table `goals` (edited from the web dashboard):
 
 ## Roadmap (not built yet)
 
-- **Phase 2:** Anthropic-powered prioritization (`claude-sonnet-4-6`), evening
-  check-in + `daily_log` table, `/time {minutes}` to tailor suggestions.
+- **Phase 2:** evening check-in + `daily_log` table are built; the Anthropic AI
+  agent is available as the dashboard **Assistant** (see
+  [AI chat agent](#ai-chat-agent-assistant-tab)). Still open: having the agent
+  rewrite the formula-based allocation, and `/time {minutes}` to tailor
+  suggestions to tonight's available time.
 - **Phase 3:** Weekly review summary, calendar awareness. (An editable web
   dashboard — beyond the originally-planned read-only one — is already built; see
   [Web dashboard](#web-dashboard).)

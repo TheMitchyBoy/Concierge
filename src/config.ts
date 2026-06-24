@@ -28,8 +28,10 @@ export interface Config {
   stallDays: number;
   /** IANA timezone string used for cron correctness. */
   tz: string;
-  /** Phase 2 only — may be empty in Phase 1. */
+  /** Anthropic API key for the AI chat agent. Empty = agent disabled. */
   anthropicApiKey: string;
+  /** Anthropic model id for the chat agent. */
+  anthropicModel: string;
   /** HTTP port for the web dashboard (Railway sets PORT). */
   port: number;
   /**
@@ -90,6 +92,7 @@ export function loadConfig(): Config {
 
   const tz = (process.env.TZ ?? "America/Chicago").trim();
   const anthropicApiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
+  const anthropicModel = (process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6").trim();
 
   const portRaw = (process.env.PORT ?? "3000").trim();
   const port = Number(portRaw);
@@ -107,6 +110,7 @@ export function loadConfig(): Config {
     stallDays,
     tz,
     anthropicApiKey,
+    anthropicModel,
     port,
     dashboardPassword,
   };

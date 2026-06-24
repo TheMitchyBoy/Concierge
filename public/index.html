@@ -98,6 +98,28 @@
       .hidden { display: none !important; }
       .muted { color: var(--muted); }
       a { color: var(--accent); }
+      .tabs { display: flex; gap: 6px; margin: 4px 0 18px; border-bottom: 1px solid var(--border); }
+      .tab {
+        background: none; border: none; border-bottom: 2px solid transparent;
+        border-radius: 0; color: var(--muted); padding: 10px 14px;
+      }
+      .tab:hover { color: var(--text); border-color: transparent; }
+      .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+      /* Chat */
+      .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 230px); min-height: 320px; }
+      .chat-log {
+        flex: 1; overflow-y: auto; padding: 8px 2px; display: flex; flex-direction: column; gap: 12px;
+      }
+      .msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; }
+      .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+      .msg.assistant { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+      .msg.system { align-self: center; color: var(--muted); font-size: 13px; background: none; }
+      .chat-input { display: flex; gap: 8px; margin-top: 12px; }
+      .chat-input textarea { min-height: 44px; max-height: 160px; }
+      .chat-empty { color: var(--muted); text-align: center; margin: auto; max-width: 420px; }
+      .chat-empty .examples { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+      .chip { border: 1px dashed var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--text); }
+      .chip:hover { border-color: var(--accent); }
     </style>
   </head>
   <body>
@@ -117,17 +139,34 @@
         <button onclick="logout()">Log out</button>
       </header>
       <main>
-        <div class="toolbar">
-          <h2 style="margin:0">Goals</h2>
-          <button onclick="addGoal()">+ Add goal</button>
+        <div class="tabs">
+          <button id="tabbtn-manage" class="tab active" onclick="switchTab('manage')">Manage</button>
+          <button id="tabbtn-assistant" class="tab" onclick="switchTab('assistant')">Assistant</button>
         </div>
-        <div id="goals"></div>
 
-        <div class="toolbar">
-          <h2 style="margin:0">Projects</h2>
-          <button class="primary" onclick="addProject()">+ Add project</button>
-        </div>
-        <div id="projects" class="grid"></div>
+        <section id="tab-manage">
+          <div class="toolbar">
+            <h2 style="margin:0">Goals</h2>
+            <button onclick="addGoal()">+ Add goal</button>
+          </div>
+          <div id="goals"></div>
+
+          <div class="toolbar">
+            <h2 style="margin:0">Projects</h2>
+            <button class="primary" onclick="addProject()">+ Add project</button>
+          </div>
+          <div id="projects" class="grid"></div>
+        </section>
+
+        <section id="tab-assistant" class="hidden">
+          <div class="chat-wrap">
+            <div id="chat-log" class="chat-log"></div>
+            <div class="chat-input">
+              <textarea id="chat-text" placeholder="Ask your Operator agent… (Enter to send, Shift+Enter for newline)"></textarea>
+              <button class="primary" id="chat-send" onclick="sendChat()">Send</button>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
 
@@ -332,6 +371,9 @@
       function logout() {
         pw = "";
         localStorage.removeItem(PW_KEY);
+        chatInited = false;
+        chatHistory = [];
+        switchTab("manage");
         showLogin();
       }
 
@@ -347,6 +389,115 @@
           $("login-err").textContent = "Wrong password.";
         }
       }
+
+      // --- Tabs ---
+      function switchTab(name) {
+        const manage = name === "manage";
+        $("tab-manage").classList.toggle("hidden", !manage);
+        $("tab-assistant").classList.toggle("hidden", manage);
+        $("tabbtn-manage").classList.toggle("active", manage);
+        $("tabbtn-assistant").classList.toggle("active", !manage);
+        if (!manage) {
+          ensureChatReady();
+          $("chat-text").focus();
+        }
+      }
+
+      // --- AI chat ---
+      let chatHistory = []; // {role, content}
+      let chatInited = false;
+
+      function appendMsg(role, content) {
+        const log = $("chat-log");
+        const empty = log.querySelector(".chat-empty");
+        if (empty) empty.remove();
+        const div = document.createElement("div");
+        div.className = "msg " + role;
+        div.textContent = content;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+        return div;
+      }
+
+      async function ensureChatReady() {
+        if (chatInited) return;
+        chatInited = true;
+        try {
+          const status = await api("GET", "/chat/status");
+          if (!status.enabled) {
+            renderChatEmpty(
+              "The AI agent isn't configured yet. Set ANTHROPIC_API_KEY in your environment (Railway → Variables) and redeploy to chat with your Operator agent."
+            );
+            $("chat-text").disabled = true;
+            $("chat-send").disabled = true;
+            return;
+          }
+          renderChatEmpty(
+            "Ask your Operator agent anything about your goals and projects — it sees them live.",
+            [
+              "What should I focus on tonight? I have about an hour.",
+              "Rank my fast projects and sharpen each next action.",
+              "Which projects are stalling and how do I unblock them?",
+            ]
+          );
+        } catch (e) {
+          renderChatEmpty("Couldn't reach the assistant: " + e.message);
+        }
+      }
+
+      function renderChatEmpty(text, examples) {
+        const log = $("chat-log");
+        log.innerHTML = "";
+        const wrap = document.createElement("div");
+        wrap.className = "chat-empty";
+        const p = document.createElement("p");
+        p.textContent = text;
+        wrap.appendChild(p);
+        if (examples) {
+          const ex = document.createElement("div");
+          ex.className = "examples";
+          examples.forEach((q) => {
+            const c = document.createElement("div");
+            c.className = "chip";
+            c.textContent = q;
+            c.onclick = () => { $("chat-text").value = q; sendChat(); };
+            ex.appendChild(c);
+          });
+          wrap.appendChild(ex);
+        }
+        log.appendChild(wrap);
+      }
+
+      async function sendChat() {
+        const ta = $("chat-text");
+        const text = ta.value.trim();
+        if (!text) return;
+        ta.value = "";
+        appendMsg("user", text);
+        chatHistory.push({ role: "user", content: text });
+
+        $("chat-send").disabled = true;
+        const thinking = appendMsg("system", "Operator is thinking…");
+        try {
+          const data = await api("POST", "/chat", { messages: chatHistory });
+          thinking.remove();
+          appendMsg("assistant", data.reply);
+          chatHistory.push({ role: "assistant", content: data.reply });
+        } catch (e) {
+          thinking.remove();
+          appendMsg("system", "Error: " + e.message);
+        } finally {
+          $("chat-send").disabled = false;
+          $("chat-text").focus();
+        }
+      }
+
+      $("chat-text")?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendChat();
+        }
+      });
 
       $("login-pw")?.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
 

@@ -21,6 +21,7 @@ import {
   type ProjectStatus,
   type ProjectType,
 } from "./db.js";
+import { chat, isAiConfigured, type ChatMessage } from "./ai.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
@@ -233,6 +234,40 @@ export function createServer(config: Config): express.Express {
     const id = parseId(req);
     if (id === null || !deleteGoal(id)) return res.status(404).json({ error: "Not found" });
     res.json({ ok: true });
+  });
+
+  // --- AI chat agent ---
+  api.get("/chat/status", (_req, res) => {
+    res.json({ enabled: isAiConfigured(config), model: config.anthropicModel });
+  });
+
+  api.post("/chat", async (req, res) => {
+    if (!isAiConfigured(config)) {
+      return res.status(501).json({
+        error: "AI agent not configured. Set ANTHROPIC_API_KEY to enable it.",
+      });
+    }
+    const raw = (req.body ?? {}).messages;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      return res.status(400).json({ error: "messages must be a non-empty array" });
+    }
+    const messages: ChatMessage[] = [];
+    for (const m of raw) {
+      const role = (m && m.role) === "assistant" ? "assistant" : "user";
+      const content = typeof (m && m.content) === "string" ? m.content.trim() : "";
+      if (content) messages.push({ role, content });
+    }
+    if (messages.length === 0) {
+      return res.status(400).json({ error: "no valid messages" });
+    }
+    try {
+      const reply = await chat(config, messages);
+      res.json({ reply });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[ai] chat failed:", msg);
+      res.status(502).json({ error: `AI request failed: ${msg}` });
+    }
   });
 
   app.use("/api", api);
