@@ -4,7 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/TheMitchyBoy/Personal-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/TheMitchyBoy/Personal-Assistant/actions/workflows/ci.yml)
+[![CI](https://github.com/TheMitchyBoy/Concierge/actions/workflows/ci.yml/badge.svg)](https://github.com/TheMitchyBoy/Concierge/actions/workflows/ci.yml)
 
 Your side-hustle focus assistant.
 A lightweight personal assistant + business analyst for a dev side-hustle —
