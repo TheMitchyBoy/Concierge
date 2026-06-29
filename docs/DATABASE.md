@@ -44,10 +44,22 @@ DATABASE_SSL=false
 
 Bearer tokens for dashboard auth. Expire after 30 days.
 
-### `projects`, `goals`, `daily_log`
+### `projects`, `goals`, `daily_log`, `project_tasks`, `meeting_notes`
 
-Same columns as before, plus `user_id INTEGER NOT NULL REFERENCES users(id)`.
-All queries are scoped by `user_id` for row-level isolation.
+Same columns as defined in `src/db.ts`, plus `user_id INTEGER NOT NULL REFERENCES users(id)`
+on user-owned tables. All queries are scoped by `user_id` for row-level isolation.
+
+**Task-first focus:** daily allocation uses the first open row in `project_tasks`
+(ordered by `sort_order`), falling back to `projects.next_action` only when no
+open tasks exist.
+
+**`project_tasks`** — checklist items per project (`title`, `done`, `sort_order`).
+
+**`meeting_notes`** — call/meeting capture from the web dashboard (`title`, `body`,
+`type`, `participants`, optional `project_id`).
+
+**`daily_log`** — free-text progress from Telegram evening check-ins and
+`/progress` commands. Readable via `GET /api/daily-log`.
 
 ## Multi-instance / SaaS
 

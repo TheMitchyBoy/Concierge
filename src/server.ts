@@ -22,12 +22,14 @@ import {
   addMeetingNote,
   addProject,
   addProjectTask,
+  addProjectTasks,
   deleteGoal,
   deleteMeetingNote,
   deleteProject,
   deleteProjectTask,
   generateLinkCode,
   getAllProjectsWithTasks,
+  getDailyLog,
   getGoal,
   getGoals,
   getMeetingNote,
@@ -54,7 +56,7 @@ import {
   type ProjectPatch,
   type ProjectStatus,
 } from "./db.js";
-import { chat, isAiConfigured, suggestTasksForProject, type ChatMessage } from "./ai.js";
+import { chat, isAiConfigured, suggestTasksForProject, suggestTasksFromMeetingNote, type ChatMessage } from "./ai.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
@@ -362,6 +364,11 @@ function parseId(req: Request): number | null {
   return Number.isInteger(id) ? id : null;
 }
 
+function parsePositiveInt(v: unknown): number | null {
+  const id = Number(v);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 function bearerToken(req: Request): string | null {
   const header = req.header("authorization") ?? "";
   const match = /^Bearer\s+(.+)$/i.exec(header);
@@ -532,8 +539,18 @@ export function createServer(config: Config): express.Express {
     if (id === null || !(await getProject(req.userId!, id))) {
       return res.status(404).json({ error: "Not found" });
     }
-    const title = toNullableString((req.body ?? {}).title);
-    if (!title) return res.status(400).json({ error: "title is required" });
+    const body = req.body ?? {};
+    const titlesRaw = body.titles;
+    if (Array.isArray(titlesRaw)) {
+      const titles = titlesRaw
+        .map((t) => (typeof t === "string" ? t.trim() : ""))
+        .filter(Boolean);
+      if (titles.length === 0) return res.status(400).json({ error: "titles must be a non-empty array" });
+      const added = await addProjectTasks(req.userId!, id, titles);
+      return res.status(201).json({ tasks: added, project: await getProjectWithTasks(req.userId!, id) });
+    }
+    const title = toNullableString(body.title);
+    if (!title) return res.status(400).json({ error: "title or titles is required" });
     const task = await addProjectTask(req.userId!, id, title);
     res.status(201).json(task);
   });
@@ -544,13 +561,20 @@ export function createServer(config: Config): express.Express {
       return res.status(404).json({ error: "Not found" });
     }
     const body = req.body ?? {};
-    const patch: { title?: string; done?: boolean } = {};
+    const patch: { title?: string; done?: boolean; sort_order?: number } = {};
     if ("title" in body) {
       const title = toNullableString(body.title);
       if (!title) return res.status(400).json({ error: "title cannot be empty" });
       patch.title = title;
     }
     if ("done" in body) patch.done = Boolean(body.done);
+    if ("sort_order" in body) {
+      const order = Number(body.sort_order);
+      if (!Number.isInteger(order) || order < 0) {
+        return res.status(400).json({ error: "sort_order must be a non-negative integer" });
+      }
+      patch.sort_order = order;
+    }
     res.json(await updateProjectTask(req.userId!, id, patch));
   });
 
@@ -665,6 +689,50 @@ export function createServer(config: Config): express.Express {
       return res.status(404).json({ error: "Not found" });
     }
     res.json({ ok: true });
+  });
+
+  api.post("/meeting-notes/:id/extract-tasks", async (req, res) => {
+    if (!isAiConfigured(config)) {
+      return res.status(501).json({
+        error: "AI not configured. Set ANTHROPIC_API_KEY to enable task extraction.",
+      });
+    }
+    const id = parseId(req);
+    const note = id === null ? undefined : await getMeetingNote(req.userId!, id);
+    if (!note) return res.status(404).json({ error: "Not found" });
+    if (!note.body.trim()) return res.status(400).json({ error: "note has no body to extract from" });
+
+    const projectId = note.project_id ?? parsePositiveInt((req.body ?? {}).project_id);
+    if (projectId === null) {
+      return res.status(400).json({ error: "link this note to an idea first, or pass project_id" });
+    }
+    if (!(await getProject(req.userId!, projectId))) {
+      return res.status(400).json({ error: "project not found" });
+    }
+
+    try {
+      const suggestions = await suggestTasksFromMeetingNote(config, req.userId!, note);
+      const add = Boolean((req.body ?? {}).add);
+      if (add) {
+        const added = await addProjectTasks(req.userId!, projectId, suggestions);
+        return res.json({
+          suggestions,
+          added,
+          project: await getProjectWithTasks(req.userId!, projectId),
+        });
+      }
+      res.json({ suggestions, project_id: projectId });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(502).json({ error: msg });
+    }
+  });
+
+  // --- Daily progress log ---
+  api.get("/daily-log", async (req, res) => {
+    const limitRaw = Number(req.query.limit);
+    const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 200) : 50;
+    res.json(await getDailyLog(req.userId!, limit));
   });
 
   // --- AI chat agent ---

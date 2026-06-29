@@ -414,6 +414,80 @@
 
       .task-del:hover { color: var(--danger); }
 
+      .task-row.focus-task {
+        border-color: rgba(139, 92, 246, 0.45);
+        background: var(--accent-subtle);
+      }
+
+      .task-focus-badge {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--accent);
+        flex-shrink: 0;
+      }
+
+      .task-move {
+        padding: 2px 6px;
+        font-size: 11px;
+        background: transparent;
+        border: none;
+        color: var(--text-3);
+        cursor: pointer;
+        line-height: 1;
+      }
+
+      .task-move:hover { color: var(--text-1); }
+
+      .task-move:disabled {
+        opacity: 0.25;
+        cursor: default;
+      }
+
+      .task-bulk-toggle {
+        font-size: 12px;
+        color: var(--text-2);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 8px;
+      }
+
+      .task-bulk-toggle:hover { color: var(--accent); }
+
+      .task-bulk-area {
+        margin-bottom: 10px;
+      }
+
+      .task-bulk-area textarea {
+        min-height: 72px;
+        font-size: 13px;
+      }
+
+      .progress-log {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .progress-entry {
+        padding: 10px 12px;
+        border-radius: var(--radius-xs);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .progress-entry time {
+        display: block;
+        font-size: 11px;
+        color: var(--text-3);
+        margin-bottom: 4px;
+      }
+
       .task-add-row {
         display: flex;
         gap: 8px;
@@ -1475,6 +1549,17 @@
               <div class="section-block">
                 <div class="section-head">
                   <h2>
+                    Progress log
+                    <span id="progress-count" class="count">0</span>
+                  </h2>
+                </div>
+                <p class="muted" style="font-size:13px;margin:-4px 0 12px">Captured from Telegram check-ins and /progress — your record of what you actually did.</p>
+                <div id="progress-log" class="progress-log"></div>
+              </div>
+
+              <div class="section-block">
+                <div class="section-head">
+                  <h2>
                     <svg width="14" height="14"><use href="#icon-target"/></svg>
                     Goals
                     <span id="goals-count" class="count">0</span>
@@ -1527,7 +1612,7 @@
                 </div>
                 <div class="field capture-notes">
                   <label>Notes</label>
-                  <textarea id="capture-body" placeholder="Jot down key points, decisions, and follow-ups as you go…"></textarea>
+                  <textarea id="capture-body" placeholder="Jot down key points, decisions, and follow-ups as you go…" onkeydown="captureKeydown(event)"></textarea>
                 </div>
                 <div class="card-actions" style="margin-top:0;padding-top:0;border-top:none">
                   <button class="primary" onclick="saveCapture()">
@@ -1798,23 +1883,65 @@
         } else {
           banner.classList.add("empty");
           $("focus-title").textContent = "No fast project is ready";
-          $("focus-action").textContent = "Set one concrete next action on an active fast project before working passive ideas.";
+          $("focus-action").textContent = "Add at least one open task to an active fast project before working passive ideas.";
         }
       }
 
+      function sortTasks(tasks) {
+        return [...tasks].sort((a, b) => {
+          if (a.done !== b.done) return a.done ? 1 : -1;
+          return (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id - b.id;
+        });
+      }
+
+      function syncProjectTasks(projectId, tasks) {
+        const p = cachedProjects.find((x) => x.id === projectId);
+        if (p) p.tasks = sortTasks(tasks);
+        updateFocusBanner(cachedProjects);
+        updateProjectCardMeta(projectId);
+      }
+
+      function updateProjectCardMeta(projectId) {
+        const p = cachedProjects.find((x) => x.id === projectId);
+        const card = document.querySelector(`.idea-card[data-id="${projectId}"]`);
+        if (!p || !card) return;
+        const openCount = (p.tasks || []).filter((t) => !t.done).length;
+        const pills = card.querySelectorAll(".idea-meta .pill");
+        if (pills.length >= 3) pills[2].textContent = `${openCount} open`;
+      }
+
+      function refreshTaskSection(projectId) {
+        const p = cachedProjects.find((x) => x.id === projectId);
+        const card = document.querySelector(`.idea-card[data-id="${projectId}"]`);
+        if (!p || !card) return;
+        const host = card.querySelector(".task-list-host");
+        if (!host) return;
+        const tasks = p.tasks || [];
+        host.innerHTML = tasks.length
+          ? renderTaskList(projectId, tasks)
+          : '<p class="muted" style="font-size:13px;margin:0">No tasks yet — add one below, paste multiple lines, or ask AI to suggest some.</p>';
+      }
+
       function renderTaskList(projectId, tasks) {
-        if (!tasks.length) {
-          return '<p class="muted" style="font-size:13px;margin:0">No tasks yet — add one below or ask AI to suggest some.</p>';
-        }
-        return `<div class="task-list">${tasks
-          .map(
-            (t) => `
-          <div class="task-row ${t.done ? "done" : ""}" data-task-id="${t.id}">
+        const sorted = sortTasks(tasks);
+        const firstOpenId = sorted.find((t) => !t.done)?.id;
+        return `<div class="task-list">${sorted
+          .map((t, idx) => {
+            const isFocus = t.id === firstOpenId;
+            const prev = sorted[idx - 1];
+            const next = sorted[idx + 1];
+            const canUp = !t.done && prev && !prev.done;
+            const canDown = !t.done && next && !next.done;
+            return `
+          <div class="task-row ${t.done ? "done" : ""} ${isFocus ? "focus-task" : ""}" data-task-id="${t.id}">
             <input type="checkbox" class="task-check" ${t.done ? "checked" : ""} onchange="toggleTask(${projectId}, ${t.id}, this.checked)" />
+            ${isFocus ? '<span class="task-focus-badge">Focus</span>' : ""}
             <span class="task-title">${esc(t.title)}</span>
+            <button type="button" class="task-move" ${canUp ? "" : "disabled"} onclick="moveTask(${projectId}, ${t.id}, -1)" title="Move up">↑</button>
+            <button type="button" class="task-move" ${canDown ? "" : "disabled"} onclick="moveTask(${projectId}, ${t.id}, 1)" title="Move down">↓</button>
             <button type="button" class="task-del" onclick="deleteTask(${projectId}, ${t.id})" title="Remove">✕</button>
-          </div>`
-          )
+          </div>`;
+          })
           .join("")}</div>`;
       }
 
@@ -1867,18 +1994,21 @@
             <div class="field"><label>Effort remaining (hrs)</label><input data-k="effort_remaining" type="number" min="1" value="${esc(p.effort_remaining ?? 8)}" oninput="markDirty(this)" /></div>
             <div class="field"><label>Deadline</label><input data-k="deadline" type="date" value="${esc(p.deadline)}" onchange="markDirty(this)" /></div>
           </div>
-          <div class="field">
-            <label>Next action</label>
-            <input data-k="next_action" value="${esc(p.next_action)}" placeholder="One concrete action that moves this project forward" oninput="markDirty(this)" />
-          </div>
           <div class="task-section">
             <div class="task-section-head">
               <label>Tasks</label>
+              ${!isNew ? '<button type="button" class="task-bulk-toggle" onclick="toggleBulkTasks(' + p.id + ')">Paste multiple</button>' : ""}
             </div>
-            ${isNew ? '<p class="muted" style="font-size:13px;margin:0 0 10px">Save the idea first, then add tasks.</p>' : renderTaskList(p.id, tasks)}
+            ${isNew ? '<p class="muted" style="font-size:13px;margin:0 0 10px">Save the idea first, then add tasks.</p>' : `<div class="task-list-host">${tasks.length ? renderTaskList(p.id, tasks) : '<p class="muted" style="font-size:13px;margin:0">No tasks yet — add one below, paste multiple lines, or ask AI to suggest some.</p>'}</div>`}
             ${!isNew ? `
+            <div id="task-bulk-${p.id}" class="task-bulk-area hidden">
+              <div class="field" style="margin-bottom:8px">
+                <textarea id="task-bulk-input-${p.id}" placeholder="One task per line…"></textarea>
+              </div>
+              <button onclick="addBulkTasks(${p.id})">Add all lines</button>
+            </div>
             <div class="task-add-row">
-              <input id="task-input-${p.id}" placeholder="Add a task…" onkeydown="if(event.key==='Enter'){event.preventDefault();addTask(${p.id})}" />
+              <input id="task-input-${p.id}" placeholder="Add a task…" onkeydown="taskInputKeydown(event, ${p.id})" />
               <button onclick="addTask(${p.id})">Add</button>
             </div>
             <div id="suggest-${p.id}"></div>` : ""}
@@ -1922,7 +2052,7 @@
       function updateProjectSelects() {
         const opts = cachedProjects.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("");
         const captureSel = $("capture-project");
-        const current = captureSel.value;
+        const current = captureSel.value || localStorage.getItem(CAPTURE_PROJECT_KEY) || "";
         captureSel.innerHTML = '<option value="">— None —</option>' + opts;
         if (current) captureSel.value = current;
 
@@ -1944,6 +2074,15 @@
         }
       }
 
+      const CAPTURE_PROJECT_KEY = "concierge_capture_project";
+
+      function captureKeydown(event) {
+        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+          event.preventDefault();
+          saveCapture();
+        }
+      }
+
       function clearCapture() {
         $("capture-title").value = "";
         $("capture-participants").value = "";
@@ -1955,7 +2094,7 @@
 
       async function saveCapture() {
         const body = $("capture-body").value;
-        const title = $("capture-title").value.trim();
+        let title = $("capture-title").value.trim();
         const participants = $("capture-participants").value.trim();
         const projectRaw = $("capture-project").value;
         const project_id = projectRaw ? Number(projectRaw) : null;
@@ -1965,6 +2104,8 @@
           return;
         }
 
+        if (!title && participants) title = `Call with ${participants}`;
+
         try {
           await api("POST", "/meeting-notes", {
             title: title || undefined,
@@ -1973,6 +2114,7 @@
             participants: participants || null,
             project_id,
           });
+          if (projectRaw) localStorage.setItem(CAPTURE_PROJECT_KEY, projectRaw);
           toast("Note saved");
           clearCapture();
           await loadMeetingNotes();
@@ -2044,11 +2186,13 @@
             ${n.body ? `<p class="note-preview">${preview}${hasMore ? "…" : ""}</p>` : '<p class="muted" style="margin:0 0 12px;font-size:13px">No notes recorded.</p>'}
             <div class="card-actions">
               <button onclick="editMeetingNote(${n.id})">Edit</button>
+              ${n.body ? `<button onclick="extractTasksFromNote(${n.id})">Extract tasks</button>` : ""}
               ${hasMore ? `<button onclick="expandNote(${n.id})">Show all</button>` : ""}
               <span class="spacer"></span>
               <button class="danger" onclick="deleteMeetingNote(${n.id})">Delete</button>
             </div>
           </div>
+          <div id="extract-${n.id}"></div>
           <div class="note-edit hidden">
             <div class="field"><label>Title</label><input data-k="title" value="${esc(n.title)}" /></div>
             <div class="row">
@@ -2112,6 +2256,64 @@
           $("notes-list").innerHTML = '<div class="empty-state">No notes yet — use quick capture above during your next call or meeting.</div>';
         } else {
           $("notes-list").innerHTML = list.map(noteCard).join("");
+        }
+      }
+
+      async function loadDailyLog() {
+        const list = await api("GET", "/daily-log?limit=30");
+        $("progress-count").textContent = list.length;
+        if (!list.length) {
+          $("progress-log").innerHTML = '<div class="empty-state">No progress logged yet — use Telegram /progress or the evening check-in.</div>';
+          return;
+        }
+        $("progress-log").innerHTML = list
+          .map(
+            (e) => `<div class="progress-entry"><time>${formatNoteDate(e.created_at)} · ${esc(e.date)}</time>${esc(e.note)}</div>`
+          )
+          .join("");
+      }
+
+      async function extractTasksFromNote(noteId) {
+        const box = $("extract-" + noteId);
+        if (!box) return;
+        box.innerHTML = '<p class="muted" style="font-size:13px">Extracting follow-ups…</p>';
+        try {
+          const data = await api("POST", "/meeting-notes/" + noteId + "/extract-tasks", {});
+          if (!data.suggestions?.length) {
+            box.innerHTML = '<p class="muted" style="font-size:13px">No follow-up tasks found.</p>';
+            return;
+          }
+          const projectId = data.project_id;
+          box.innerHTML = `
+            <div class="suggest-box" style="margin-top:12px">
+              <p>Follow-ups from this note${projectId ? ` for idea #${projectId}` : ""}:</p>
+              <div class="suggest-chips">
+                ${data.suggestions.map((s) => `
+                  <div class="suggest-chip">
+                    <span>${esc(s)}</span>
+                    <button data-project-id="${projectId}" data-title="${esc(s)}" onclick="addSuggestedTaskFromBtn(this)">Add</button>
+                  </div>`).join("")}
+              </div>
+              <button class="primary" style="margin-top:10px;width:100%;justify-content:center" onclick="addAllExtractedTasks(${noteId}, ${projectId})">Add all</button>
+            </div>`;
+        } catch (e) {
+          box.innerHTML = `<p style="color:var(--danger);font-size:13px">${esc(e.message)}</p>`;
+        }
+      }
+
+      async function addAllExtractedTasks(noteId, projectId) {
+        try {
+          const data = await api("POST", "/meeting-notes/" + noteId + "/extract-tasks", { add: true });
+          if (data.project) {
+            const idx = cachedProjects.findIndex((x) => x.id === projectId);
+            if (idx >= 0) cachedProjects[idx] = data.project;
+            updateFocusBanner(cachedProjects);
+            refreshTaskSection(projectId);
+          }
+          $("extract-" + noteId).innerHTML = '<p class="muted" style="font-size:13px">Tasks added to idea.</p>';
+          toast("Tasks added");
+        } catch (e) {
+          toast(e.message, true);
         }
       }
 
@@ -2186,32 +2388,119 @@
         const input = $("task-input-" + projectId);
         const title = input?.value?.trim();
         if (!title) return;
+        input.value = "";
         try {
-          await api("POST", "/projects/" + projectId + "/tasks", { title });
-          input.value = "";
+          const task = await api("POST", "/projects/" + projectId + "/tasks", { title });
+          const p = cachedProjects.find((x) => x.id === projectId);
+          if (p) {
+            p.tasks = [...(p.tasks || []), task];
+            syncProjectTasks(projectId, p.tasks);
+            refreshTaskSection(projectId);
+          }
           toast("Task added");
-          await loadProjects();
+        } catch (e) {
+          toast(e.message, true);
+        }
+      }
+
+      function taskInputKeydown(event, projectId) {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          addTask(projectId);
+        }
+      }
+
+      function toggleBulkTasks(projectId) {
+        const box = $("task-bulk-" + projectId);
+        if (!box) return;
+        box.classList.toggle("hidden");
+        if (!box.classList.contains("hidden")) $("task-bulk-input-" + projectId)?.focus();
+      }
+
+      async function addBulkTasks(projectId) {
+        const raw = $("task-bulk-input-" + projectId)?.value || "";
+        const titles = raw.split("\n").map((s) => s.trim()).filter(Boolean);
+        if (!titles.length) {
+          toast("Add one task per line", true);
+          return;
+        }
+        try {
+          const data = await api("POST", "/projects/" + projectId + "/tasks", { titles });
+          const p = cachedProjects.find((x) => x.id === projectId);
+          if (p && data.tasks) {
+            p.tasks = [...(p.tasks || []), ...data.tasks];
+            syncProjectTasks(projectId, p.tasks);
+            refreshTaskSection(projectId);
+          }
+          $("task-bulk-input-" + projectId).value = "";
+          $("task-bulk-" + projectId)?.classList.add("hidden");
+          toast(`${data.tasks?.length || titles.length} tasks added`);
         } catch (e) {
           toast(e.message, true);
         }
       }
 
       async function toggleTask(projectId, taskId, done) {
+        const p = cachedProjects.find((x) => x.id === projectId);
+        const task = p?.tasks?.find((t) => t.id === taskId);
+        if (!task) return;
+        const prevDone = task.done;
+        task.done = done;
+        syncProjectTasks(projectId, p.tasks);
+        refreshTaskSection(projectId);
         try {
           await api("PATCH", "/tasks/" + taskId, { done });
-          await loadProjects();
         } catch (e) {
+          task.done = prevDone;
+          syncProjectTasks(projectId, p.tasks);
+          refreshTaskSection(projectId);
           toast(e.message, true);
-          await loadProjects();
         }
       }
 
       async function deleteTask(projectId, taskId) {
+        const p = cachedProjects.find((x) => x.id === projectId);
+        if (!p) return;
+        const idx = (p.tasks || []).findIndex((t) => t.id === taskId);
+        if (idx < 0) return;
+        const removed = p.tasks.splice(idx, 1)[0];
+        syncProjectTasks(projectId, p.tasks);
+        refreshTaskSection(projectId);
         try {
           await api("DELETE", "/tasks/" + taskId);
           toast("Task removed");
-          await loadProjects();
         } catch (e) {
+          p.tasks.splice(idx, 0, removed);
+          syncProjectTasks(projectId, p.tasks);
+          refreshTaskSection(projectId);
+          toast(e.message, true);
+        }
+      }
+
+      async function moveTask(projectId, taskId, direction) {
+        const p = cachedProjects.find((x) => x.id === projectId);
+        if (!p) return;
+        const open = sortTasks(p.tasks || []).filter((t) => !t.done);
+        const idx = open.findIndex((t) => t.id === taskId);
+        const swapIdx = idx + direction;
+        if (idx < 0 || swapIdx < 0 || swapIdx >= open.length) return;
+        const a = open[idx];
+        const b = open[swapIdx];
+        const aOrder = a.sort_order;
+        a.sort_order = b.sort_order;
+        b.sort_order = aOrder;
+        syncProjectTasks(projectId, p.tasks);
+        refreshTaskSection(projectId);
+        try {
+          await Promise.all([
+            api("PATCH", "/tasks/" + a.id, { sort_order: a.sort_order }),
+            api("PATCH", "/tasks/" + b.id, { sort_order: b.sort_order }),
+          ]);
+        } catch (e) {
+          b.sort_order = a.sort_order;
+          a.sort_order = aOrder;
+          syncProjectTasks(projectId, p.tasks);
+          refreshTaskSection(projectId);
           toast(e.message, true);
         }
       }
@@ -2252,9 +2541,14 @@
 
       async function addSuggestedTask(projectId, title) {
         try {
-          await api("POST", "/projects/" + projectId + "/tasks", { title });
+          const task = await api("POST", "/projects/" + projectId + "/tasks", { title });
+          const p = cachedProjects.find((x) => x.id === projectId);
+          if (p) {
+            p.tasks = [...(p.tasks || []), task];
+            syncProjectTasks(projectId, p.tasks);
+            refreshTaskSection(projectId);
+          }
           toast("Task added");
-          await loadProjects();
         } catch (e) {
           toast(e.message, true);
         }
@@ -2262,9 +2556,15 @@
 
       async function addAllSuggestions(projectId) {
         try {
-          await api("POST", "/projects/" + projectId + "/suggest-tasks", { add: true });
+          const data = await api("POST", "/projects/" + projectId + "/suggest-tasks", { add: true });
+          if (data.project) {
+            const idx = cachedProjects.findIndex((x) => x.id === projectId);
+            if (idx >= 0) cachedProjects[idx] = data.project;
+            updateFocusBanner(cachedProjects);
+            refreshTaskSection(projectId);
+          }
+          $("suggest-" + projectId).innerHTML = "";
           toast("Tasks added");
-          await loadProjects();
         } catch (e) {
           toast(e.message, true);
         }
@@ -2335,7 +2635,7 @@
         $("app").classList.remove("hidden");
         updateSidebarUser(currentUser);
         token = "";
-        Promise.all([loadGoals(), loadProjects(), loadMeetingNotes(), loadSettings()]).catch((e) => toast(e.message, true));
+        Promise.all([loadGoals(), loadProjects(), loadMeetingNotes(), loadDailyLog(), loadSettings()]).catch((e) => toast(e.message, true));
       }
 
       function showLogin() {

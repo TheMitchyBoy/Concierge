@@ -37,7 +37,6 @@ interface AddDraft {
     | "confidence"
     | "time_to_cash"
     | "effort"
-    | "next_action"
     | "description"
     | "task";
   data: Partial<NewProject> & { task?: string };
@@ -167,7 +166,6 @@ export function createBot(config: Config): ConciergeBot {
       return;
     }
     await addProjectTask(user.id, id, remainder.trim());
-    await stampProgress(user.id, id);
     await ctx.reply(`\u2705 Task added to #${id} "${idea.name}".`);
   });
 
@@ -413,16 +411,10 @@ async function handleAddStep(
         return;
       }
       d.effort_remaining = effort;
-      session.step = "next_action";
-      await ctx.reply("What's the single next action? (/skip to leave blank)");
-      return;
-    }
-
-    case "next_action":
-      d.next_action = value;
       session.step = "description";
       await ctx.reply("Describe the project in a sentence or two. (/skip to leave blank)");
       return;
+    }
 
     case "description":
       d.notes = value;
@@ -473,11 +465,6 @@ async function handleAddSkip(
       return;
     case "effort":
       d.effort_remaining = 8;
-      session.step = "next_action";
-      await ctx.reply("What's the single next action? (/skip to leave blank)");
-      return;
-    case "next_action":
-      d.next_action = null;
       session.step = "description";
       await ctx.reply("Describe the project in a sentence or two. (/skip to leave blank)");
       return;
@@ -508,7 +495,7 @@ async function finishAdd(
     confidence: d.confidence ?? 3,
     time_to_cash: d.time_to_cash ?? 3,
     effort_remaining: d.effort_remaining ?? 8,
-    next_action: d.next_action ?? null,
+    next_action: null,
     notes: d.notes ?? null,
     status: "idea",
     tasks: tasks.length ? tasks : undefined,

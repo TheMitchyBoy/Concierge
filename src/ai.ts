@@ -9,11 +9,13 @@ import {
   addProjectTask,
   getAllProjectsWithTasks,
   getGoals,
+  getMeetingNotes,
   getProjectWithTasks,
   getStalledProjects,
   getUserById,
   PROJECT_TYPES,
   updateProject,
+  type MeetingNote,
   type NewProject,
   type ProjectPatch,
   type ProjectType,
@@ -329,12 +331,13 @@ export async function buildSystemPrompt(userId: number): Promise<string> {
   const lines: string[] = [];
 
   lines.push(
-    "You are the AI assistant for Concierge — a business analyst that helps the user choose the right project and sharpen the next action.",
+    "You are the AI assistant for Concierge — a business analyst that helps the user choose the right project and sharpen their task list.",
     "",
     "How you work:",
-    "- The user tracks **projects** with a type (`fast` or `passive`), a single next action, and optional supporting tasks.",
+    "- The user tracks **projects** with a type (`fast` or `passive`) and a checklist of concrete tasks.",
+    "- The first open task on each project drives the daily focus nudge.",
     "- Fast projects are income work and always take priority over passive projects.",
-    "- Your main job: sharpen the next action, improve prioritization, and suggest concrete small tasks when useful.",
+    "- Your main job: sharpen tasks, improve prioritization, and suggest concrete small tasks when useful.",
     "- When a project is thin, ask one clarifying question OR propose 3-5 starter tasks and offer to add them.",
     "- Prefer adding tasks via tools when the user agrees ('yes', 'add those', 'sounds good').",
     "- Be concise. No motivational fluff. Tasks should be doable in an evening or weekend session.",
@@ -366,9 +369,11 @@ export async function buildSystemPrompt(userId: number): Promise<string> {
       const done = idea.tasks.filter((t) => t.done);
       lines.push(`- #${idea.id} [${idea.type}/${idea.status}] ${idea.name} — score ${scoreProject(idea).toFixed(1)}`);
       if (idea.notes) lines.push(`    description: ${idea.notes}`);
-      if (idea.next_action) lines.push(`    next action: ${idea.next_action}`);
       if (open.length) {
+        lines.push(`    focus task: ${open[0]!.title}`);
         lines.push(`    open tasks: ${open.map((t) => `"${t.title}"`).join("; ")}`);
+      } else if (idea.next_action) {
+        lines.push(`    fallback action (no open tasks): ${idea.next_action}`);
       } else {
         lines.push("    open tasks: (none — suggest some!)");
       }
@@ -380,13 +385,13 @@ export async function buildSystemPrompt(userId: number): Promise<string> {
   lines.push("# Suggested focus today");
   if (allocation.primary) {
     const { project, action, score } = allocation.primary;
-    lines.push(`- Primary fast project: #${project.id} ${project.name} → ${action ?? "(set a next action)"} [score ${score.toFixed(1)}]`);
+    lines.push(`- Primary fast project: #${project.id} ${project.name} → ${action ?? "(add a task)"} [score ${score.toFixed(1)}]`);
   } else {
     lines.push("- No fast project is ready — help the user define or activate one.");
   }
   if (allocation.secondary) {
     lines.push(
-      `- Spare time passive: #${allocation.secondary.project.id} ${allocation.secondary.project.name} → ${allocation.secondary.action ?? "(set a next action)"}`
+      `- Spare time passive: #${allocation.secondary.project.id} ${allocation.secondary.project.name} → ${allocation.secondary.action ?? "(add a task)"}`
     );
   }
   if (allocation.deadlineWarnings.length > 0) {
@@ -396,6 +401,20 @@ export async function buildSystemPrompt(userId: number): Promise<string> {
   }
   if (stalled.length > 0) {
     lines.push(`- Stalling (${stallDays}+ days): ${stalled.map((p) => p.name).join("; ")}`);
+  }
+
+  const notes = await getMeetingNotes(userId);
+  const recentNotes = notes.slice(0, 8);
+  lines.push("");
+  lines.push("# Recent call/meeting notes");
+  if (recentNotes.length === 0) {
+    lines.push("(none)");
+  } else {
+    for (const n of recentNotes) {
+      const linked = n.project_id ? ` [idea #${n.project_id}]` : "";
+      const preview = n.body.length > 200 ? `${n.body.slice(0, 200)}…` : n.body;
+      lines.push(`- #${n.id} ${n.title || n.type}${linked}: ${preview}`);
+    }
   }
 
   return lines.join("\n");
@@ -448,6 +467,61 @@ export async function suggestTasksForProject(
           done.length ? `Already done: ${done.join("; ")}` : "",
           "",
           "Suggest 4-6 new tasks to move this idea forward.",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    ],
+  });
+
+  const text = extractText(response.content);
+  const lines = parseSuggestionLines(text);
+  return lines.slice(0, 8);
+}
+
+/** Extract follow-up tasks from a call or meeting note. */
+export async function suggestTasksFromMeetingNote(
+  config: Config,
+  userId: number,
+  note: MeetingNote
+): Promise<string[]> {
+  if (!isAiConfigured(config)) {
+    throw new Error("AI not configured (set ANTHROPIC_API_KEY).");
+  }
+
+  let ideaContext = "";
+  if (note.project_id) {
+    const idea = await getProjectWithTasks(userId, note.project_id);
+    if (idea) {
+      const open = idea.tasks.filter((t) => !t.done).map((t) => t.title);
+      ideaContext = [
+        `Linked idea: ${idea.name}`,
+        idea.notes ? `Description: ${idea.notes}` : "",
+        open.length ? `Existing open tasks: ${open.join("; ")}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+  }
+
+  const client = new Anthropic({ apiKey: config.anthropicApiKey });
+  const response = await client.messages.create({
+    model: config.anthropicModel,
+    max_tokens: 1024,
+    system:
+      "You extract concrete follow-up tasks from call and meeting notes. Return ONLY a plain list — one task per line, no numbering, no intro. Each task should be doable in under 2 hours. Do not repeat existing tasks.",
+    messages: [
+      {
+        role: "user",
+        content: [
+          note.title ? `Title: ${note.title}` : "",
+          note.participants ? `With: ${note.participants}` : "",
+          ideaContext,
+          "",
+          "Notes:",
+          note.body,
+          "",
+          "Extract 3-6 follow-up tasks from these notes.",
         ]
           .filter(Boolean)
           .join("\n"),

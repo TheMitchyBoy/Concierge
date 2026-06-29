@@ -51,8 +51,9 @@ score = (revenue_potential * confidence * speed) / max(effort_remaining, 1)
 
 ### Daily allocation
 
-- **Primary task** = `next_action` of the highest-scoring `fast` active project.
-- **Secondary task** = `next_action` of the highest-scoring `passive` active
+- **Primary task** = first open task on the highest-scoring `fast` active project
+  (falls back to `next_action` only if no tasks exist).
+- **Secondary task** = first open task on the highest-scoring `passive` active
   project, time-boxed to 30 min, marked "only if you have time."
 - **Deadline warnings** = any active project with a deadline within 3 days,
   surfaced at the top regardless of score.
@@ -223,10 +224,10 @@ Link your account first (`/link CODE` from dashboard Settings). Then:
 | `/unlink` | Disconnect Telegram from your account |
 | `/today` | Re-send today's allocation on demand |
 | `/list` | List active projects with id, name, type, score (compact) |
-| `/add` | Guided add, one question at a time (name → type → revenue 1-5 → confidence 1-5 → time_to_cash 1-5 → effort hrs → next action) |
-| `/next {id} {text}` | Set the `next_action` for a project (stamps progress) |
-| `/done {id}` | Mark the current next action complete (stamps progress), then prompt for the new one |
-| `/progress {id} [note]` | Log progress without changing the next action — resets the stall clock; an optional note is saved to `daily_log` |
+| `/add` | Guided add, one question at a time (name → type → scoring → description → optional first task) |
+| `/next {id} {text}` | Add a task to a project (stamps progress) |
+| `/done {id}` | Mark the next open task complete (stamps progress), then prompt for a new one |
+| `/progress {id} [note]` | Log progress without completing a task — resets the stall clock; an optional note is saved to `daily_log` |
 | `/status {id} {status}` | Update status (`idea`/`active`/`blocked`/`shipped`/`paid`/`archived`) |
 | `/skip` | Skip the evening check-in (reply to the check-in prompt) |
 | `/cancel` | Abort an in-progress `/add` or `/done` follow-up |
@@ -277,8 +278,15 @@ API (authenticated routes require `Authorization: Bearer <token>`):
 | `POST /api/auth/signup` · `POST /api/auth/login` | Create account / sign in |
 | `GET /api/auth/me` · `PATCH /api/auth/me` | Profile and schedule settings |
 | `POST /api/auth/telegram-link` | Generate Telegram link code |
-| `GET /api/projects` · `POST /api/projects` | List / create projects |
+| `GET /api/projects` · `POST /api/projects` | List / create projects (with optional `tasks[]`) |
 | `PATCH /api/projects/:id` · `DELETE /api/projects/:id` | Edit / delete a project |
+| `POST /api/projects/:id/tasks` | Add one task (`title`) or bulk (`titles[]`) |
+| `PATCH /api/tasks/:id` · `DELETE /api/tasks/:id` | Update / delete a task |
+| `POST /api/projects/:id/suggest-tasks` | AI task suggestions for a project |
+| `GET /api/meeting-notes` · `POST /api/meeting-notes` | List / create call & meeting notes |
+| `PATCH /api/meeting-notes/:id` · `DELETE /api/meeting-notes/:id` | Edit / delete a note |
+| `POST /api/meeting-notes/:id/extract-tasks` | AI follow-up tasks from a note |
+| `GET /api/daily-log` | Recent progress log entries (Telegram check-ins & `/progress`) |
 | `GET /api/goals` · `POST /api/goals` | List / create goals |
 | `PATCH /api/goals/:id` · `DELETE /api/goals/:id` | Edit / delete a goal |
 | `GET /api/chat/status` | Whether the AI agent is enabled + its model |
@@ -314,8 +322,8 @@ Concierge tracks momentum, not just priority — it works for any project type
 (client sites, sales, passive products), not just code.
 
 - **Progress stamping.** Every project has a `last_progress_at` timestamp. It's
-  set whenever you make progress: on `/done`, on `/next`, and via
-  `/progress {id} [note]` (which stamps without changing the next action and
+  set when you complete a task, add a task (web or Telegram), or use
+  `/progress {id} [note]` (which stamps without completing a task and
   optionally logs a note).
 - **Stall detection.** An `active` project is *stalling* if it has no recorded
   progress, or its last progress is older than `STALL_DAYS` (default 4). A
@@ -380,12 +388,34 @@ Table `projects`:
 | `time_to_cash` | INTEGER | 1–5 (1 = paid within days, 5 = months/never) |
 | `effort_remaining` | INTEGER | estimated hours left to ship |
 | `status` | TEXT | `idea` / `active` / `blocked` / `shipped` / `paid` / `archived` |
-| `next_action` | TEXT | the single concrete next step |
+| `next_action` | TEXT | legacy fallback when no open tasks exist |
 | `deadline` | TEXT | ISO date, nullable |
 | `notes` | TEXT | nullable |
 | `last_progress_at` | TEXT | ISO datetime of most recent progress, nullable |
 | `created_at` | TEXT | ISO datetime |
 | `updated_at` | TEXT | ISO datetime |
+
+Table `project_tasks` (checklist items — first open task drives daily focus):
+
+| column | type | notes |
+| --- | --- | --- |
+| `id` | INTEGER | PK autoincrement |
+| `project_id` | INTEGER | FK to projects |
+| `title` | TEXT | task text |
+| `done` | BOOLEAN | completion flag |
+| `sort_order` | INTEGER | ordering within project |
+
+Table `meeting_notes` (call & meeting capture from web dashboard):
+
+| column | type | notes |
+| --- | --- | --- |
+| `id` | INTEGER | PK autoincrement |
+| `project_id` | INTEGER | optional FK to projects |
+| `title` | TEXT | note title |
+| `body` | TEXT | note content |
+| `type` | TEXT | `call` or `meeting` |
+| `participants` | TEXT | nullable |
+| `occurred_at` | TEXT | ISO datetime |
 
 Table `daily_log` (evening check-ins + `/progress` notes):
 

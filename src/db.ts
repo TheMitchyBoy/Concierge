@@ -639,18 +639,6 @@ export async function addProject(userId: number, p: NewProject): Promise<Project
   return project;
 }
 
-export async function setNextAction(
-  userId: number,
-  id: number,
-  nextAction: string
-): Promise<boolean> {
-  const result = await getPool().query(
-    "UPDATE projects SET next_action = $1, updated_at = NOW() WHERE user_id = $2 AND id = $3",
-    [nextAction, userId, id]
-  );
-  return (result.rowCount ?? 0) > 0;
-}
-
 export async function setStatus(
   userId: number,
   id: number,
@@ -680,6 +668,17 @@ export async function addDailyLog(userId: number, note: string): Promise<DailyLo
   return result.rows[0];
 }
 
+export async function getDailyLog(userId: number, limit = 50): Promise<DailyLogEntry[]> {
+  const result = await getPool().query<DailyLogEntry>(
+    `SELECT * FROM daily_log
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [userId, limit]
+  );
+  return result.rows;
+}
+
 export async function getStalledProjects(userId: number, stallDays: number): Promise<Project[]> {
   const cutoff = new Date(Date.now() - stallDays * 86_400_000).toISOString();
   const active = await getActiveProjects(userId);
@@ -694,14 +693,6 @@ export async function getStalledProjects(userId: number, stallDays: number): Pro
       const tb = b.last_progress_at ? new Date(b.last_progress_at).getTime() : -Infinity;
       return ta - tb;
     });
-}
-
-export async function clearNextAction(userId: number, id: number): Promise<boolean> {
-  const result = await getPool().query(
-    "UPDATE projects SET next_action = NULL, updated_at = NOW() WHERE user_id = $1 AND id = $2",
-    [userId, id]
-  );
-  return (result.rowCount ?? 0) > 0;
 }
 
 export async function updateProject(
@@ -817,17 +808,27 @@ export async function addProjectTask(
      RETURNING *`,
     [userId, projectId, title.trim(), order]
   );
-  await getPool().query("UPDATE projects SET updated_at = NOW() WHERE user_id = $1 AND id = $2", [
-    userId,
-    projectId,
-  ]);
+  await stampProgress(userId, projectId);
   return result.rows[0];
+}
+
+export async function addProjectTasks(
+  userId: number,
+  projectId: number,
+  titles: string[]
+): Promise<ProjectTask[]> {
+  const added: ProjectTask[] = [];
+  for (const title of titles) {
+    const trimmed = title.trim();
+    if (trimmed) added.push(await addProjectTask(userId, projectId, trimmed));
+  }
+  return added;
 }
 
 export async function updateProjectTask(
   userId: number,
   taskId: number,
-  patch: { title?: string; done?: boolean }
+  patch: { title?: string; done?: boolean; sort_order?: number }
 ): Promise<ProjectTask | undefined> {
   const sets: string[] = [];
   const params: unknown[] = [];
@@ -840,6 +841,10 @@ export async function updateProjectTask(
   if (patch.done !== undefined) {
     sets.push(`done = $${i++}`);
     params.push(patch.done);
+  }
+  if (patch.sort_order !== undefined) {
+    sets.push(`sort_order = $${i++}`);
+    params.push(patch.sort_order);
   }
   if (sets.length === 0) {
     const result = await getPool().query<ProjectTask>(
