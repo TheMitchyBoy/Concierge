@@ -99,6 +99,42 @@ export interface Goal {
   updated_at: string;
 }
 
+export type MeetingNoteType = "call" | "meeting";
+
+export const MEETING_NOTE_TYPES: MeetingNoteType[] = ["call", "meeting"];
+
+/** Notes captured during phone calls or meetings. */
+export interface MeetingNote {
+  id: number;
+  user_id: number;
+  project_id: number | null;
+  title: string;
+  body: string;
+  type: MeetingNoteType;
+  participants: string | null;
+  occurred_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewMeetingNote {
+  title: string;
+  body: string;
+  type?: MeetingNoteType;
+  participants?: string | null;
+  project_id?: number | null;
+  occurred_at?: string;
+}
+
+export interface MeetingNotePatch {
+  title?: string;
+  body?: string;
+  type?: MeetingNoteType;
+  participants?: string | null;
+  project_id?: number | null;
+  occurred_at?: string;
+}
+
 export const PROJECT_EDITABLE_COLUMNS = [
   "name",
   "type",
@@ -244,6 +280,23 @@ CREATE TABLE IF NOT EXISTS project_tasks (
 
 CREATE INDEX IF NOT EXISTS idx_project_tasks_project_id ON project_tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_tasks_user_id ON project_tasks(user_id);
+
+CREATE TABLE IF NOT EXISTS meeting_notes (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  type TEXT NOT NULL DEFAULT 'call'
+    CHECK (type IN ('call', 'meeting')),
+  participants TEXT,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_meeting_notes_user_id ON meeting_notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_meeting_notes_occurred_at ON meeting_notes(occurred_at DESC);
 `;
 
 function getPool(): pg.Pool {
@@ -842,6 +895,110 @@ export async function updateGoal(
 export async function deleteGoal(userId: number, id: number): Promise<boolean> {
   const result = await getPool().query(
     "DELETE FROM goals WHERE user_id = $1 AND id = $2",
+    [userId, id]
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+// --- Meeting notes ---
+
+export async function getMeetingNotes(userId: number): Promise<MeetingNote[]> {
+  const result = await getPool().query<MeetingNote>(
+    `SELECT * FROM meeting_notes
+     WHERE user_id = $1
+     ORDER BY occurred_at DESC, id DESC`,
+    [userId]
+  );
+  return result.rows;
+}
+
+export async function getMeetingNote(
+  userId: number,
+  id: number
+): Promise<MeetingNote | undefined> {
+  const result = await getPool().query<MeetingNote>(
+    "SELECT * FROM meeting_notes WHERE user_id = $1 AND id = $2",
+    [userId, id]
+  );
+  return result.rows[0];
+}
+
+export async function addMeetingNote(
+  userId: number,
+  note: NewMeetingNote
+): Promise<MeetingNote> {
+  const ts = nowIso();
+  const result = await getPool().query<MeetingNote>(
+    `INSERT INTO meeting_notes
+      (user_id, project_id, title, body, type, participants, occurred_at, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING *`,
+    [
+      userId,
+      note.project_id ?? null,
+      note.title,
+      note.body,
+      note.type ?? "call",
+      note.participants ?? null,
+      note.occurred_at ?? ts,
+      ts,
+      ts,
+    ]
+  );
+  return result.rows[0];
+}
+
+export async function updateMeetingNote(
+  userId: number,
+  id: number,
+  patch: MeetingNotePatch
+): Promise<MeetingNote | undefined> {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  let i = 1;
+
+  if (patch.title !== undefined) {
+    sets.push(`title = $${i++}`);
+    params.push(patch.title);
+  }
+  if (patch.body !== undefined) {
+    sets.push(`body = $${i++}`);
+    params.push(patch.body);
+  }
+  if (patch.type !== undefined) {
+    sets.push(`type = $${i++}`);
+    params.push(patch.type);
+  }
+  if (patch.participants !== undefined) {
+    sets.push(`participants = $${i++}`);
+    params.push(patch.participants);
+  }
+  if (patch.project_id !== undefined) {
+    sets.push(`project_id = $${i++}`);
+    params.push(patch.project_id);
+  }
+  if (patch.occurred_at !== undefined) {
+    sets.push(`occurred_at = $${i++}`);
+    params.push(patch.occurred_at);
+  }
+
+  if (sets.length === 0) return getMeetingNote(userId, id);
+
+  sets.push("updated_at = NOW()");
+  params.push(userId, id);
+
+  const result = await getPool().query<MeetingNote>(
+    `UPDATE meeting_notes SET ${sets.join(", ")}
+     WHERE user_id = $${i} AND id = $${i + 1}
+     RETURNING *`,
+    params
+  );
+  return result.rows[0];
+}
+
+export async function deleteMeetingNote(userId: number, id: number): Promise<boolean> {
+  const result = await getPool().query(
+    "DELETE FROM meeting_notes WHERE user_id = $1 AND id = $2",
     [userId, id]
   );
   return (result.rowCount ?? 0) > 0;

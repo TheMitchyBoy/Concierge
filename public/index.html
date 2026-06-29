@@ -780,6 +780,113 @@
 
       .goal .card-actions { margin-top: 12px; padding-top: 12px; }
 
+      /* ── Meeting notes ── */
+      .capture-card {
+        background: var(--surface);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        margin-bottom: 28px;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 0 40px rgba(139, 92, 246, 0.08);
+      }
+
+      .capture-card .capture-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent-2);
+        margin: 0 0 16px;
+      }
+
+      .type-toggle {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .type-toggle button {
+        flex: 1;
+        padding: 10px 14px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--bg-elevated);
+        color: var(--text-2);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.18s var(--ease);
+      }
+
+      .type-toggle button:hover { border-color: var(--border-strong); color: var(--text); }
+      .type-toggle button.active {
+        background: var(--accent-subtle);
+        border-color: rgba(139, 92, 246, 0.35);
+        color: var(--accent-2);
+      }
+
+      .capture-notes textarea {
+        min-height: 160px;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+
+      .note-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px 20px;
+        margin-bottom: 10px;
+        backdrop-filter: blur(12px);
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+
+      .note-card:hover {
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .note-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .note-card-head h3 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      .note-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+      }
+
+      .note-meta .pill.type-call { color: #60a5fa; border-color: rgba(96, 165, 250, 0.25); background: rgba(96, 165, 250, 0.1); }
+      .note-meta .pill.type-meeting { color: var(--passive); border-color: rgba(52, 211, 153, 0.25); background: var(--passive-subtle); }
+
+      .note-preview {
+        font-size: 14px;
+        color: var(--text-2);
+        line-height: 1.55;
+        white-space: pre-wrap;
+        margin: 0 0 12px;
+        max-height: 4.5em;
+        overflow: hidden;
+      }
+
+      .note-card.expanded .note-preview { max-height: none; }
+
+      .note-card .card-actions { margin-top: 12px; padding-top: 12px; }
+
       /* ── Auth (split layout) ── */
       .auth-layout {
         min-height: 100vh;
@@ -1229,6 +1336,9 @@
       <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="20 6 9 17 4 12"/>
       </symbol>
+      <symbol id="icon-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+      </symbol>
     </svg>
 
     <!-- ── Login ── -->
@@ -1294,6 +1404,10 @@
               <svg><use href="#icon-grid"/></svg>
               Workspace
             </button>
+            <button id="tabbtn-notes" class="nav-item" onclick="switchTab('notes')">
+              <svg><use href="#icon-phone"/></svg>
+              Call notes
+            </button>
             <button id="tabbtn-assistant" class="nav-item" onclick="switchTab('assistant')">
               <svg><use href="#icon-chat"/></svg>
               Assistant
@@ -1327,6 +1441,7 @@
           <main>
             <div class="mobile-tabs">
               <button class="nav-item active" onclick="switchTab('manage')">Workspace</button>
+              <button class="nav-item" onclick="switchTab('notes')">Notes</button>
               <button class="nav-item" onclick="switchTab('assistant')">Assistant</button>
               <button class="nav-item" onclick="switchTab('settings')">Settings</button>
             </div>
@@ -1384,6 +1499,53 @@
                   </button>
                 </div>
                 <div id="projects" class="grid"></div>
+              </div>
+            </section>
+
+            <section id="tab-notes" class="hidden">
+              <div class="capture-card">
+                <p class="capture-label">Quick capture</p>
+                <div class="type-toggle" id="capture-type-toggle">
+                  <button type="button" class="active" data-type="call" onclick="setCaptureType('call')">Phone call</button>
+                  <button type="button" data-type="meeting" onclick="setCaptureType('meeting')">Meeting</button>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label>Title</label>
+                    <input id="capture-title" placeholder="Who or what is this about?" />
+                  </div>
+                  <div class="field">
+                    <label>With</label>
+                    <input id="capture-participants" placeholder="Names, company, etc." />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Link to idea <span class="muted" style="font-weight:400">(optional)</span></label>
+                  <select id="capture-project">
+                    <option value="">— None —</option>
+                  </select>
+                </div>
+                <div class="field capture-notes">
+                  <label>Notes</label>
+                  <textarea id="capture-body" placeholder="Jot down key points, decisions, and follow-ups as you go…"></textarea>
+                </div>
+                <div class="card-actions" style="margin-top:0;padding-top:0;border-top:none">
+                  <button class="primary" onclick="saveCapture()">
+                    <svg><use href="#icon-check"/></svg>
+                    Save note
+                  </button>
+                  <button class="ghost" onclick="clearCapture()">Clear</button>
+                </div>
+              </div>
+
+              <div class="section-block">
+                <div class="section-head">
+                  <h2>
+                    Past notes
+                    <span id="notes-count" class="count">0</span>
+                  </h2>
+                </div>
+                <div id="notes-list"></div>
               </div>
             </section>
 
@@ -1465,9 +1627,13 @@
 
       const PAGE_TITLES = {
         manage: { title: "Workspace", subtitle: "Capture ideas, manage tasks, and let AI suggest what to do next." },
+        notes: { title: "Call notes", subtitle: "Capture notes during phone calls and meetings — fast and distraction-free." },
         assistant: { title: "Assistant", subtitle: "Get task suggestions and help breaking ideas into actionable steps." },
         settings: { title: "Settings", subtitle: "Account, schedule, and Telegram integration." },
       };
+
+      let captureType = "call";
+      let cachedProjects = [];
 
       const $ = (id) => document.getElementById(id);
 
@@ -1689,12 +1855,238 @@
 
       async function loadProjects() {
         const list = await api("GET", "/projects");
+        cachedProjects = list;
         $("projects-count").textContent = list.length;
         updateFocusBanner(list);
+        updateProjectSelects();
         if (list.length === 0) {
           $("projects").innerHTML = '<div class="empty-state">No ideas yet — capture something you\'re exploring.</div>';
         } else {
           $("projects").innerHTML = list.map(projectCard).join("");
+        }
+      }
+
+      function updateProjectSelects() {
+        const opts = cachedProjects.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("");
+        const captureSel = $("capture-project");
+        const current = captureSel.value;
+        captureSel.innerHTML = '<option value="">— None —</option>' + opts;
+        if (current) captureSel.value = current;
+
+        document.querySelectorAll("[data-note-project]").forEach((sel) => {
+          const val = sel.value;
+          sel.innerHTML = '<option value="">— None —</option>' + opts;
+          if (val) sel.value = val;
+        });
+      }
+
+      function setCaptureType(type) {
+        captureType = type;
+        document.querySelectorAll("#capture-type-toggle button").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.type === type);
+        });
+        const title = $("capture-title");
+        if (!title.value.trim()) {
+          title.placeholder = type === "call" ? "Who did you call?" : "What was the meeting about?";
+        }
+      }
+
+      function clearCapture() {
+        $("capture-title").value = "";
+        $("capture-participants").value = "";
+        $("capture-body").value = "";
+        $("capture-project").value = "";
+        setCaptureType("call");
+        $("capture-body").focus();
+      }
+
+      async function saveCapture() {
+        const body = $("capture-body").value;
+        const title = $("capture-title").value.trim();
+        const participants = $("capture-participants").value.trim();
+        const projectRaw = $("capture-project").value;
+        const project_id = projectRaw ? Number(projectRaw) : null;
+
+        if (!body.trim() && !title && !participants) {
+          toast("Add a title or some notes first", true);
+          return;
+        }
+
+        try {
+          await api("POST", "/meeting-notes", {
+            title: title || undefined,
+            body,
+            type: captureType,
+            participants: participants || null,
+            project_id,
+          });
+          toast("Note saved");
+          clearCapture();
+          await loadMeetingNotes();
+        } catch (e) {
+          toast(e.message, true);
+        }
+      }
+
+      function formatNoteDate(iso) {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return iso;
+        return d.toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        });
+      }
+
+      function projectName(id) {
+        if (!id) return null;
+        const p = cachedProjects.find((x) => x.id === id);
+        return p ? p.name : `#${id}`;
+      }
+
+      function noteCard(n) {
+        const isNew = !n.id;
+        const type = n.type || "call";
+        const projectOpts = cachedProjects
+          .map((p) => `<option value="${p.id}" ${p.id === n.project_id ? "selected" : ""}>${esc(p.name)}</option>`)
+          .join("");
+        const preview = esc(n.body || "").slice(0, 300);
+        const hasMore = (n.body || "").length > 300;
+
+        if (isNew) {
+          return `
+          <div class="note-card" data-id="">
+            <div class="field"><label>Title</label><input data-k="title" placeholder="Note title" /></div>
+            <div class="row">
+              <div class="field"><label>Type</label><select data-k="type"><option value="call">Phone call</option><option value="meeting">Meeting</option></select></div>
+              <div class="field"><label>With</label><input data-k="participants" placeholder="Participants" /></div>
+            </div>
+            <div class="field"><label>Link to idea</label><select data-k="project_id" data-note-project><option value="">— None —</option>${projectOpts}</select></div>
+            <div class="field"><label>Notes</label><textarea data-k="body" placeholder="Notes…"></textarea></div>
+            <div class="card-actions">
+              <button class="primary" onclick="saveMeetingNote(this)">Create</button>
+              <span class="spacer"></span>
+              <button class="danger" onclick="removeNewNote(this)">Discard</button>
+            </div>
+          </div>`;
+        }
+
+        return `
+        <div class="note-card" data-id="${n.id}" data-editing="0">
+          <div class="note-view">
+            <div class="note-card-head">
+              <div>
+                <h3>${esc(n.title)}</h3>
+                <div class="note-meta">
+                  <span class="pill type-${type}">${type === "call" ? "Phone call" : "Meeting"}</span>
+                  <span class="pill">${formatNoteDate(n.occurred_at)}</span>
+                  ${n.participants ? `<span class="pill">${esc(n.participants)}</span>` : ""}
+                  ${n.project_id ? `<span class="pill">${esc(projectName(n.project_id))}</span>` : ""}
+                </div>
+              </div>
+            </div>
+            ${n.body ? `<p class="note-preview">${preview}${hasMore ? "…" : ""}</p>` : '<p class="muted" style="margin:0 0 12px;font-size:13px">No notes recorded.</p>'}
+            <div class="card-actions">
+              <button onclick="editMeetingNote(${n.id})">Edit</button>
+              ${hasMore ? `<button onclick="expandNote(${n.id})">Show all</button>` : ""}
+              <span class="spacer"></span>
+              <button class="danger" onclick="deleteMeetingNote(${n.id})">Delete</button>
+            </div>
+          </div>
+          <div class="note-edit hidden">
+            <div class="field"><label>Title</label><input data-k="title" value="${esc(n.title)}" /></div>
+            <div class="row">
+              <div class="field">
+                <label>Type</label>
+                <select data-k="type">
+                  <option value="call" ${type === "call" ? "selected" : ""}>Phone call</option>
+                  <option value="meeting" ${type === "meeting" ? "selected" : ""}>Meeting</option>
+                </select>
+              </div>
+              <div class="field"><label>With</label><input data-k="participants" value="${esc(n.participants)}" /></div>
+            </div>
+            <div class="field"><label>Link to idea</label><select data-k="project_id" data-note-project><option value="">— None —</option>${projectOpts}</select></div>
+            <div class="field"><label>Notes</label><textarea data-k="body">${esc(n.body)}</textarea></div>
+            <div class="card-actions">
+              <button class="primary" onclick="saveMeetingNote(this)">Save</button>
+              <button class="ghost" onclick="cancelEditNote(${n.id})">Cancel</button>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function expandNote(id) {
+        const card = document.querySelector(`.note-card[data-id="${id}"]`);
+        if (card) card.classList.add("expanded");
+      }
+
+      function editMeetingNote(id) {
+        const card = document.querySelector(`.note-card[data-id="${id}"]`);
+        if (!card) return;
+        card.dataset.editing = "1";
+        card.querySelector(".note-view").classList.add("hidden");
+        card.querySelector(".note-edit").classList.remove("hidden");
+      }
+
+      function cancelEditNote(id) {
+        loadMeetingNotes().catch((e) => toast(e.message, true));
+      }
+
+      function removeNewNote(btn) {
+        btn.closest(".note-card").remove();
+      }
+
+      function collectNote(cardEl) {
+        const out = {};
+        cardEl.querySelectorAll("[data-k]").forEach((el) => {
+          const key = el.dataset.k;
+          if (key === "project_id") {
+            out[key] = el.value ? Number(el.value) : null;
+          } else {
+            out[key] = el.value;
+          }
+        });
+        return out;
+      }
+
+      async function loadMeetingNotes() {
+        const list = await api("GET", "/meeting-notes");
+        $("notes-count").textContent = list.length;
+        if (list.length === 0) {
+          $("notes-list").innerHTML = '<div class="empty-state">No notes yet — use quick capture above during your next call or meeting.</div>';
+        } else {
+          $("notes-list").innerHTML = list.map(noteCard).join("");
+        }
+      }
+
+      async function saveMeetingNote(btn) {
+        const card = btn.closest(".note-card");
+        const id = card.dataset.id;
+        const body = collectNote(card);
+        try {
+          if (id) {
+            await api("PATCH", "/meeting-notes/" + id, body);
+          } else {
+            await api("POST", "/meeting-notes", body);
+          }
+          toast("Saved");
+          await loadMeetingNotes();
+        } catch (e) {
+          toast(e.message, true);
+        }
+      }
+
+      async function deleteMeetingNote(id) {
+        if (!confirm("Delete this note?")) return;
+        try {
+          await api("DELETE", "/meeting-notes/" + id);
+          toast("Deleted");
+          await loadMeetingNotes();
+        } catch (e) {
+          toast(e.message, true);
         }
       }
 
@@ -1889,7 +2281,7 @@
         $("login").classList.add("hidden");
         $("app").classList.remove("hidden");
         updateSidebarUser(currentUser);
-        Promise.all([loadGoals(), loadProjects(), loadSettings()]).catch((e) => toast(e.message, true));
+        Promise.all([loadGoals(), loadProjects(), loadMeetingNotes(), loadSettings()]).catch((e) => toast(e.message, true));
       }
 
       function showLogin() {
@@ -1998,7 +2390,7 @@
       }
 
       function switchTab(name) {
-        const tabs = ["manage", "assistant", "settings"];
+        const tabs = ["manage", "notes", "assistant", "settings"];
         tabs.forEach((t) => {
           $("tab-" + t).classList.toggle("hidden", t !== name);
           const btn = $("tabbtn-" + t);
@@ -2008,6 +2400,10 @@
           btn.classList.toggle("active", tabs[i] === name);
         });
         updatePageHeader(name);
+        if (name === "notes") {
+          loadMeetingNotes().catch((e) => toast(e.message, true));
+          $("capture-body").focus();
+        }
         if (name === "assistant") {
           ensureChatReady();
           $("chat-text").focus();
@@ -2141,6 +2537,13 @@
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           sendChat();
+        }
+      });
+
+      $("capture-body")?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          saveCapture();
         }
       });
 

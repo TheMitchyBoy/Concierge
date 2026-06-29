@@ -19,15 +19,19 @@ import {
 } from "./auth.js";
 import {
   addGoal,
+  addMeetingNote,
   addProject,
   addProjectTask,
   deleteGoal,
+  deleteMeetingNote,
   deleteProject,
   deleteProjectTask,
   generateLinkCode,
   getAllProjectsWithTasks,
   getGoal,
   getGoals,
+  getMeetingNote,
+  getMeetingNotes,
   getProject,
   getProjectTask,
   getProjectWithTasks,
@@ -35,9 +39,14 @@ import {
   setTelegramLinkCode,
   unlinkTelegram,
   updateGoal,
+  updateMeetingNote,
   updateProject,
   updateProjectTask,
   updateUserSettings,
+  MEETING_NOTE_TYPES,
+  type MeetingNotePatch,
+  type MeetingNoteType,
+  type NewMeetingNote,
   type NewProject,
   type ProjectPatch,
   type ProjectStatus,
@@ -114,6 +123,81 @@ function validateProjectPatch(body: Record<string, unknown>): { value: ProjectPa
       return { error: `status must be one of ${UI_STATUSES.join(", ")}` };
     }
     patch.status = status;
+  }
+
+  return { value: patch };
+}
+
+function validateNewMeetingNote(
+  body: Record<string, unknown>
+): { value: NewMeetingNote } | { error: string } {
+  const title = toNullableString(body.title);
+  const bodyText = body.body !== undefined ? String(body.body) : "";
+  const type = String(body.type ?? "call").trim() as MeetingNoteType;
+  if (!MEETING_NOTE_TYPES.includes(type)) {
+    return { error: `type must be one of ${MEETING_NOTE_TYPES.join(", ")}` };
+  }
+
+  const projectIdRaw = body.project_id;
+  let project_id: number | null = null;
+  if (projectIdRaw !== undefined && projectIdRaw !== null && projectIdRaw !== "") {
+    const n = toInt(projectIdRaw);
+    if (n === null) return { error: "project_id must be an integer" };
+    project_id = n;
+  }
+
+  const occurred_at = toNullableString(body.occurred_at);
+  if (occurred_at && Number.isNaN(Date.parse(occurred_at))) {
+    return { error: "occurred_at must be a valid ISO date" };
+  }
+
+  return {
+    value: {
+      title: title || (type === "call" ? "Phone call" : "Meeting"),
+      body: bodyText,
+      type,
+      participants: toNullableString(body.participants),
+      project_id,
+      occurred_at: occurred_at ?? undefined,
+    },
+  };
+}
+
+function validateMeetingNotePatch(
+  body: Record<string, unknown>
+): { value: MeetingNotePatch } | { error: string } {
+  const patch: MeetingNotePatch = {};
+
+  if ("title" in body) {
+    const title = toNullableString(body.title);
+    if (!title) return { error: "title cannot be empty" };
+    patch.title = title;
+  }
+  if ("body" in body) patch.body = String(body.body ?? "");
+  if ("type" in body) {
+    const type = String(body.type ?? "").trim() as MeetingNoteType;
+    if (!MEETING_NOTE_TYPES.includes(type)) {
+      return { error: `type must be one of ${MEETING_NOTE_TYPES.join(", ")}` };
+    }
+    patch.type = type;
+  }
+  if ("participants" in body) patch.participants = toNullableString(body.participants);
+  if ("project_id" in body) {
+    const raw = body.project_id;
+    if (raw === null || raw === "") {
+      patch.project_id = null;
+    } else {
+      const n = toInt(raw);
+      if (n === null) return { error: "project_id must be an integer" };
+      patch.project_id = n;
+    }
+  }
+  if ("occurred_at" in body) {
+    const occurred_at = toNullableString(body.occurred_at);
+    if (!occurred_at || Number.isNaN(Date.parse(occurred_at))) {
+      return { error: "occurred_at must be a valid ISO date" };
+    }
+    patch.occurred_at = occurred_at;
   }
 
   return { value: patch };
@@ -371,6 +455,48 @@ export function createServer(config: Config): express.Express {
   api.delete("/goals/:id", async (req, res) => {
     const id = parseId(req);
     if (id === null || !(await deleteGoal(req.userId!, id))) {
+      return res.status(404).json({ error: "Not found" });
+    }
+    res.json({ ok: true });
+  });
+
+  // --- Meeting notes (calls & meetings) ---
+  api.get("/meeting-notes", async (req, res) => {
+    res.json(await getMeetingNotes(req.userId!));
+  });
+
+  api.post("/meeting-notes", async (req, res) => {
+    const result = validateNewMeetingNote(req.body ?? {});
+    if ("error" in result) return res.status(400).json({ error: result.error });
+
+    if (result.value.project_id != null) {
+      const project = await getProject(req.userId!, result.value.project_id);
+      if (!project) return res.status(400).json({ error: "project not found" });
+    }
+
+    res.status(201).json(await addMeetingNote(req.userId!, result.value));
+  });
+
+  api.patch("/meeting-notes/:id", async (req, res) => {
+    const id = parseId(req);
+    if (id === null || !(await getMeetingNote(req.userId!, id))) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    const result = validateMeetingNotePatch(req.body ?? {});
+    if ("error" in result) return res.status(400).json({ error: result.error });
+
+    if (result.value.project_id != null) {
+      const project = await getProject(req.userId!, result.value.project_id);
+      if (!project) return res.status(400).json({ error: "project not found" });
+    }
+
+    res.json(await updateMeetingNote(req.userId!, id, result.value));
+  });
+
+  api.delete("/meeting-notes/:id", async (req, res) => {
+    const id = parseId(req);
+    if (id === null || !(await deleteMeetingNote(req.userId!, id))) {
       return res.status(404).json({ error: "Not found" });
     }
     res.json({ ok: true });
